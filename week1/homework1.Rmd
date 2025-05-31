@@ -1,0 +1,22 @@
+---
+title: "Week 1  Homework"
+author: "Alyssa Gurkas"
+date: "2025-05-31"
+output: html_document
+---
+## Homework Exercises from Forecasting: Principles and Practice
+### Exercise 2.1 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load-libraries}
+library(fpp2)
+library(tidyverse)
+```
+
+1. Use the help function to explore what the series gold, woolyrnq and gas represent.
+
+```{r}
+
+```
