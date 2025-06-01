@@ -15,7 +15,7 @@ library(fpp2)
 library(tidyverse)
 ```
 
-1. Use the help function to explore what the series gold, woolyrnq and gas represent.
+### 1. Use the help function to explore what the series gold, woolyrnq and gas represent.
 
 ```{r help-gold}
 help("gold")
@@ -60,5 +60,28 @@ autoplot(woolyrnq)+
 ```
 
 ### 1.b. What is the frequency of each series? Hint: apply the frequency() function.
+Gold Frequency: `r stats::frequency(gold)`
+Woollen Yarn Frequency: `r stats::frequency(woolyrnq)`
+Gas Frequency: `r stats::frequency(gas)`
 
+```{r freq}
+frequency(gold)
+frequency(woolyrnq)
+frequency(gas)
+```
+
+
+### 1.c. Use which.max() to spot the outlier in the gold series. Which observation was it?
+```{r outlier-gold}
+which.max(gold)
+```
+
+The outlier in the gold series is `r which.max(gold)` U.S. Dollars.
+
+## 2. Download the file tute1.csv from the book website, open it in Excel (or some other spreadsheet application), and review its contents. You should find four columns of information. Columns B through D each contain a quarterly series, labelled Sales, AdBudget and GDP. Sales contains the quarterly sales for a small company over the period 1981-2005. AdBudget is the advertising budget and GDP is the gross domestic product. All series have been adjusted for inflation.
+
+```{r load-tute1}
+
+
+```
 
