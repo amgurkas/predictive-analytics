@@ -17,6 +17,48 @@ library(tidyverse)
 
 1. Use the help function to explore what the series gold, woolyrnq and gas represent.
 
-```{r}
-
+```{r help-gold}
+help("gold")
 ```
+
+The gold dataset represents the daily gold prices in US dollars from January 1, 1985
+to March 31, 1989.
+
+```{r help-woolyrnq}
+help("woolyrnq")
+```
+
+The woolyrnq dataset represents the quarterly Australian production of woollen 
+yarn (in tonnes) from March 1965 - September 1994. 
+
+```{r help-gas}
+help("gas")
+```
+
+The gas dataset represents the Australian monthly gas production from 1956-1995.
+
+### 1.a. Use autoplot() to plot each of these in separate plots.
+
+#### `gold` Plot
+
+```{r gold-plot fig.cap = "Figure 1. Daily Gold Prices in US dollars: January 1, 1985 to March 31, 1989"}
+autoplot(gold)+
+  xlab("Time") + ylab("U.S. Dollars")
+```
+
+
+#### `woolyrnq` Plot
+```{r woolyrnq-plot, fig.cap="Figure 2. Quarterly Australian Production of Woollen Yarn (in tonnes) from March 1965 - September 1994"}
+autoplot(woolyrnq)+
+  xlab("Time") + ylab("Woollen Yarn Production (Tonnes)")
+```
+
+#### `gas` Plot
+```{r gas-plot, fig.cap= "Figure 3. Australian Monthly Gas Production from 1956-1995"}
+autoplot(woolyrnq)+
+  xlab("Time") + ylab("Gas Production")
+```
+
+### 1.b. What is the frequency of each series? Hint: apply the frequency() function.
+
+
