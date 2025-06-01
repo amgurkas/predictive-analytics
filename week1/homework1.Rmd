@@ -37,9 +37,9 @@ help("gas")
 
 The gas dataset represents the Australian monthly gas production from 1956-1995.
 
-### 1.a. Use autoplot() to plot each of these in separate plots.
+#### 1.a. Use autoplot() to plot each of these in separate plots.
 
-#### `gold` Plot
+##### `gold` Plot
 
 ```{r gold-plot fig.cap = "Figure 1. Daily Gold Prices in US dollars: January 1, 1985 to March 31, 1989"}
 autoplot(gold)+
@@ -47,19 +47,19 @@ autoplot(gold)+
 ```
 
 
-#### `woolyrnq` Plot
+##### `woolyrnq` Plot
 ```{r woolyrnq-plot, fig.cap="Figure 2. Quarterly Australian Production of Woollen Yarn (in tonnes) from March 1965 - September 1994"}
 autoplot(woolyrnq)+
   xlab("Time") + ylab("Woollen Yarn Production (Tonnes)")
 ```
 
-#### `gas` Plot
+##### `gas` Plot
 ```{r gas-plot, fig.cap= "Figure 3. Australian Monthly Gas Production from 1956-1995"}
 autoplot(woolyrnq)+
   xlab("Time") + ylab("Gas Production")
 ```
 
-### 1.b. What is the frequency of each series? Hint: apply the frequency() function.
+#### 1.b. What is the frequency of each series? Hint: apply the frequency() function.
 Gold Frequency: `r stats::frequency(gold)`
 Woollen Yarn Frequency: `r stats::frequency(woolyrnq)`
 Gas Frequency: `r stats::frequency(gas)`
@@ -71,17 +71,66 @@ frequency(gas)
 ```
 
 
-### 1.c. Use which.max() to spot the outlier in the gold series. Which observation was it?
+#### 1.c. Use which.max() to spot the outlier in the gold series. Which observation was it?
 ```{r outlier-gold}
 which.max(gold)
 ```
 
 The outlier in the gold series is `r which.max(gold)` U.S. Dollars.
 
-## 2. Download the file tute1.csv from the book website, open it in Excel (or some other spreadsheet application), and review its contents. You should find four columns of information. Columns B through D each contain a quarterly series, labelled Sales, AdBudget and GDP. Sales contains the quarterly sales for a small company over the period 1981-2005. AdBudget is the advertising budget and GDP is the gross domestic product. All series have been adjusted for inflation.
+### 2. Download the file tute1.csv from the book website, open it in Excel (or some other spreadsheet application), and review its contents. You should find four columns of information. Columns B through D each contain a quarterly series, labelled Sales, AdBudget and GDP. Sales contains the quarterly sales for a small company over the period 1981-2005. AdBudget is the advertising budget and GDP is the gross domestic product. All series have been adjusted for inflation.
 
+#### 2.a.You can read the data into R with the following script:
 ```{r load-tute1}
-
-
+tute1 <- read_csv("https://raw.githubusercontent.com/amgurkas/predictive-analytics/refs/heads/master/tute1.csv")
 ```
 
+#### 2.b. Convert the data to time series
+```{r convert-time-series}
+mytimeseries <- ts(tute1[,-1], start=1981, frequency=4)
+```
+
+#### 2.c. Construct time series plots of each of the three series
+```{r construct-3-series}
+autoplot(mytimeseries, facets=TRUE)
+```
+
+### 3. Download some monthly Australian retail data from the book website. These represent retail sales in various categories for different Australian states, and are stored in a MS-Excel file.
+
+#### 3.a. You can read the data into R with the following script:
+
+```{r read-retail-data}
+retaildata <- readxl::read_excel("retail.xlsx", skip=1)
+#The second argument (skip=1) is required because the Excel sheet has two header rows.
+```
+
+#### 3.b. Select one of the time series as follows (but replace the column name with your own chosen column):
+```{r select-series}
+myts <- ts(retaildata[,"A3349873A"],
+  frequency=12, start=c(1982,4))
+```
+
+#### 3.c. Explore your chosen retail time series these functions: autoplot(), ggseasonplot(), ggsubseriesplot(), gglagplot(), ggAcf(). Can you spot any seasonality, cyclicity and trend? What do you learn about the series?
+
+### 4. Create time plots of the following time series: bicoal, chicken, dole, usdeaths, lynx, goog, writing, fancy, a10, h02.
+* Use help() to find out about the data in each series.
+* For the goog plot, modify the axis labels and title.
+
+### 5. Use the ggseasonplot() and ggsubseriesplot() functions to explore the seasonal patterns in the following time series: writing, fancy, a10, h02.
+* What can you say about the seasonal patterns?
+* Can you identify any unusual years?
+
+### 6. Use the following graphics functions: autoplot(), ggseasonplot(), ggsubseriesplot(), gglagplot(), ggAcf() and explore features from the following time series: hsales, usdeaths, bricksq, sunspotarea, gasoline.
+* Can you spot any seasonality, cyclicity and trend?
+* What do you learn about the series?
+
+
+### 7. The arrivals data set comprises quarterly international arrivals (in thousands) to Australia from Japan, New Zealand, UK and the US.
+* Use autoplot(), ggseasonplot() and ggsubseriesplot() to compare the differences between the arrivals from these four countries.
+* Can you identify any unusual observations?
+
+### 8. The following time plots and ACF plots correspond to four different time series. Your task is to match each time plot in the first row with one of the ACF plots in the second row.
+
+### 9. The `pigs` data shows the monthly total number of pigs slaughtered in Victoria, Australia, from Jan 1980 to Aug 1995. Use mypigs <- window(pigs, start=1990) to select the data starting from 1990. Use autoplot and ggAcf for mypigs series and compare these to white noise plots from Figures 2.17 and 2.18.
+
+### 10. `dj` contains 292 consecutive trading days of the Dow Jones Index. Use ddj <- diff(dj) to compute the daily changes in the index. Plot ddj and its ACF. Do the changes in the Dow Jones Index look like white noise?
