@@ -5,7 +5,7 @@ date: "2025-05-31"
 output: html_document
 ---
 ## Homework Exercises from Forecasting: Principles and Practice
-### Exercise 2.1 
+### 2.10 Exercises
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -82,7 +82,7 @@ The outlier in the gold series is `r which.max(gold)` U.S. Dollars.
 
 #### 2.a.You can read the data into R with the following script:
 ```{r load-tute1}
-tute1 <- read_csv("https://raw.githubusercontent.com/amgurkas/predictive-analytics/refs/heads/master/tute1.csv")
+tute1 <- read_csv("https://raw.githubusercontent.com/amgurkas/predictive-analytics/refs/heads/master/week1/data/tute1.csv")
 ```
 
 #### 2.b. Convert the data to time series
@@ -107,18 +107,55 @@ autoplot(mytimeseries, facets=FALSE)+
 #### 3.a. You can read the data into R with the following script:
 
 ```{r read-retail-data}
-retaildata <- read_excel("data/retail.xlsx")
-getwd()
+retaildata <- read_excel("data/retail.xlsx", skip=1)
 #The second argument (skip=1) is required because the Excel sheet has two header rows.
 ```
 
 #### 3.b. Select one of the time series as follows (but replace the column name with your own chosen column):
 ```{r select-series}
-myts <- ts(retaildata[,"A3349873A"],
+myts <- ts(retaildata[,"A3349335T"],
   frequency=12, start=c(1982,4))
 ```
 
 #### 3.c. Explore your chosen retail time series these functions: autoplot(), ggseasonplot(), ggsubseriesplot(), gglagplot(), ggAcf(). Can you spot any seasonality, cyclicity and trend? What do you learn about the series?
+
+```{r retail-plot, fig.cap="Figure 4. INSERT TITLE HERE"}
+autoplot(myts)+ 
+  xlab("Time") + ylab("Retail Price")
+```
+
+```{r myts-outlier}
+which.max(myts)
+```
+This means that the 381st row is the maximum value in this dataset. 
+
+```{r retail-season-plot, fig.cap="Figure 5. INSERT TITLE HERE"}
+ggseasonplot(myts,
+             year.labels=TRUE, year.labels.left=TRUE)+ 
+  xlab("Time") + ylab("Retail Price")
+```
+A seasonal plot is useful for understanding the underlying seasonal pattern. 
+In this plot we can see that there is an increase in the product's price in 
+December, January, and a slight increase in March.
+
+```{r retail-subseriesplot, fig.cap="Figure 6. INSERT HERE}
+ggsubseriesplot(myts)+ 
+  xlab("Time") + ylab("Retail Price")
+```
+A seasonal subseries plot can also be used to understand seasonal patterns. In
+Figure 6, the data for each season is collected together in time plots. As 
+depicted in Figure 6, there is a spike in the product price in December, January,
+and a slight increase in March.
+
+```{r retail-lagplot, fig.cap="Figure 7. INSERT HERE"}
+gglagplot(myts,
+          lags=6)+ 
+  xlab("Time") + ylab("Retail Price")
+```
+
+```{r retail-Acf, fig.cap="Figure 8. INSERT HERE"}
+ggAcf(myts)
+```
 
 ### 4. Create time plots of the following time series: bicoal, chicken, dole, usdeaths, lynx, goog, writing, fancy, a10, h02.
 * Use help() to find out about the data in each series.
