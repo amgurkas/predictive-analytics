@@ -157,6 +157,8 @@ gglagplot(myts,
 ggAcf(myts)
 ```
 
+## Extra Practice
+
 ### 4. Create time plots of the following time series: bicoal, chicken, dole, usdeaths, lynx, goog, writing, fancy, a10, h02.
 * Use help() to find out about the data in each series.
 * For the goog plot, modify the axis labels and title.
