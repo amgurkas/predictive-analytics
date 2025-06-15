@@ -12,22 +12,53 @@ library(fpp2)
 library(tidyverse)
 library(officer)
 library(mlbench)
+library(gridExtra)
+
+############################## Creating Word Doc ###############################
+# create empty Word file
+doc <- read_docx()
 
 ################################## KJ 3.1 ######################################
-# The UC Irvine Machine Learning Repository6 contains a data set related
-# to glass identification. The data consist of 214 glass samples labeled as one
-# of seven class categories. There are nine predictors, including the refractive
-# index and percentages of eight elements: Na, Mg, Al, Si, K, Ca, Ba, and Fe.
-# The data can be accessed via:
-data(Glass)
-str(Glass)
+kj31intro <- paste0("The UC Irvine Machine Learning Repository6 contains a data set related to glass identification. The data consist of 214 glass samples labeled as one of seven class categories. There are nine predictors, including the refractive index and percentages of eight elements: Na, Mg, Al, Si, K, Ca, Ba, and Fe.")
+kj31a <- paste0("Using visualizations, explore the predictor variables to understand their distributions as well as the relationships between predictors.")
+kj31b <- paste0("Do there appear to be any outliers in the data? Are any predictors skewed?")
+kj31body1 <- paste0("The data can be accessed via:")
+
+doc <- doc %>% 
+  body_add_par(kj31intro) %>% 
+  body_add_par(kj31a) %>% 
+  body_add_par(kj31b) %>% 
+  body_add_par(kj31body1)
 
 # (a) Using visualizations, explore the predictor variables to understand their
 # distributions as well as the relationships between predictors.
+glass2 <- Glass %>% 
+  select(-Type) %>% 
+  pivot_longer(everything(), names_to = "indicator", values_to = "value")
 
-ggplot(iris2, aes(value)) +
-  geom_histogram() +
+# facet wrapped indicators
+ggplot(glass2, aes(value)) +
+  geom_histogram(bins = 70, fill = "steelblue", color = "black") +
   facet_wrap(~indicator)
+
+# Individual Indicators
+plot_glass_distributions <- function(data) {
+  numeric_data <- data[sapply(data, is.numeric)]
+  
+  for (colname in names(numeric_data)) {
+    p <- ggplot(data, aes_string(x = colname)) +
+      geom_histogram(bins = 30, fill = "steelblue", color = "black") +
+      theme_minimal() +
+      labs(title = paste("Distribution of", colname),
+           x = colname,
+           y = "Frequency")
+    print(p)  # Print each plot individually
+    readline(prompt = "Press [Enter] to show the next plot...")
+  }
+}
+
+# Run the function
+plot_glass_distributions(Glass)
 
 # (b) Do there appear to be any outliers in the data? Are any predictors skewed?
 # (c) Are there any relevant transformations of one or more predictors that
