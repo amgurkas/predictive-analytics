@@ -13,25 +13,30 @@ library(tidyverse)
 library(officer)
 library(mlbench)
 library(gridExtra)
-
-############################## Creating Word Doc ###############################
-# create empty Word file
-doc <- read_docx()
+library(GGally)
 
 ################################## KJ 3.1 ######################################
-kj31intro <- paste0("The UC Irvine Machine Learning Repository6 contains a data set related to glass identification. The data consist of 214 glass samples labeled as one of seven class categories. There are nine predictors, including the refractive index and percentages of eight elements: Na, Mg, Al, Si, K, Ca, Ba, and Fe.")
-kj31a <- paste0("Using visualizations, explore the predictor variables to understand their distributions as well as the relationships between predictors.")
-kj31b <- paste0("Do there appear to be any outliers in the data? Are any predictors skewed?")
-kj31body1 <- paste0("The data can be accessed via:")
+# Problem Introduction
+# The UC Irvine Machine Learning Repository6 contains a data set related
+# to glass identification. The data consist of 214 glass samples labeled as one
+# of seven class categories. There are nine predictors, including the refractive
+# index and percentages of eight elements: Na, Mg, Al, Si, K, Ca, Ba, and Fe.
+# The data can be accessed via:
+data(Glass)
+str(Glass)
 
-doc <- doc %>% 
-  body_add_par(kj31intro) %>% 
-  body_add_par(kj31a) %>% 
-  body_add_par(kj31b) %>% 
-  body_add_par(kj31body1)
+# KJ 3.1 (a)
+# Using visualizations, explore the predictor variables to understand their
+# distributions as well as the relationships between predictors
 
-# (a) Using visualizations, explore the predictor variables to understand their
-# distributions as well as the relationships between predictors.
+# Approach KJ 3.1 (a)
+# (1) Plot the data to see the distribution using a histogram. This can be done
+# by using the ggplot facet_wrap() argument, or by creating individual plots.
+
+# (2) Alternatively, the data can be visualized using the ggpairs() function
+# from the GGally package. This provides a matrix of containing density plots,
+# scatterplots, Pearson correlations, and boxplots among indicators.
+
 glass2 <- Glass %>% 
   select(-Type) %>% 
   pivot_longer(everything(), names_to = "indicator", values_to = "value")
@@ -40,6 +45,18 @@ glass2 <- Glass %>%
 ggplot(glass2, aes(value)) +
   geom_histogram(bins = 70, fill = "steelblue", color = "black") +
   facet_wrap(~indicator)
+
+# density plots - doesn't show anything b/c values are not spread similarly
+ggplot(glass2) +
+  geom_density(aes(x=value,fill=indicator)) +
+  labs(
+    x="Value",
+    y="Density"
+  )
+  ggtitle("Density Plots of Indicators") +
+  theme_bw() +
+  theme(axis.text.x = element_text(face = 'bold', size = 10),
+        axis.text.y = element_text(face = 'bold', size = 10))
 
 # Individual Indicators
 plot_glass_distributions <- function(data) {
@@ -57,12 +74,54 @@ plot_glass_distributions <- function(data) {
   }
 }
 
-# Run the function
+# running function, need to save each ggplot so that it can go into the word doc
+# plots should be included in the Appendix.
 plot_glass_distributions(Glass)
 
-# (b) Do there appear to be any outliers in the data? Are any predictors skewed?
-# (c) Are there any relevant transformations of one or more predictors that
-# might improve the classification model?
+# plotting the indicators using the ggpairs() function
+Glass %>% 
+  select(-Type) %>% 
+GGally::ggpairs()
+
+# From these plots, it is apparent that not all of the predictors are normally 
+# distributed, and that some have outliers, such as Ba, Al, and Na. Additionally,
+# from the scatterplot matrix produced by the ggpairs() function, it is 
+# apparent that certain predictors have stronger relationships than others. 
+
+# KJ 3.1 (b) 
+# Do there appear to be any outliers in the data? Are any predictors skewed?
+
+# Approach KJ 3.1 (b)
+# Outliers can be detected through visualizations like boxplots. 
+
+ggplot(glass2, aes(x = "", y = value)) +
+  geom_boxplot(fill = "lightblue", outlier.color = "red") +
+  facet_wrap(~ indicator, scales = "free_y") +
+  theme_minimal() +
+  labs(title = "Boxplots of Predictors",
+       y = "Value",
+       x = "") +
+  theme(strip.text = element_text(size = 8))
+
+# KJ 3.1 (c) 
+# Are there any relevant transformations of one or more predictors that might 
+# improve the classification model?
+
+# Approach KJ 3.1 (c)
+# There are a few transformations or steps that can be taken to improve the 
+# classification model: 
+# Data Cleaning: Check missing values (Removal versus imputation)
+# Data Transformation: Center the data or scale it 
+# Data Transformation: For features that are skewed, can perform Log or Box-Cox 
+# transformations to normalize distributions.
+# Identify Problematic Predictors: Filter data for near-zero variance predictors
+# (these are predictors where most of the values are the same), and highly 
+# correlated predictors that may lead to collinearity issues and increase model 
+# variance. 
+
+
+
+
 
 
 
