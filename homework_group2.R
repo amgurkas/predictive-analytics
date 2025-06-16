@@ -103,6 +103,10 @@ ggplot(glass2, aes(x = "", y = value)) +
        x = "") +
   theme(strip.text = element_text(size = 8))
 
+# From this plot, it is apparent that there are outliers in nearly all of the 
+# predictors except for Mg. To handle skewnewss, the data can be transformed
+# through Log or Box-Cox transformations. 
+
 # KJ 3.1 (c) 
 # Are there any relevant transformations of one or more predictors that might 
 # improve the classification model?
@@ -118,11 +122,6 @@ ggplot(glass2, aes(x = "", y = value)) +
 # (these are predictors where most of the values are the same), and highly 
 # correlated predictors that may lead to collinearity issues and increase model 
 # variance. 
-
-
-
-
-
 
 
 ################################### KJ 3.2 #####################################
