@@ -14,6 +14,7 @@ library(officer)
 library(mlbench)
 library(gridExtra)
 library(GGally)
+library(caret)
 
 ################################## KJ 3.1 ######################################
 # Problem Introduction
@@ -92,7 +93,9 @@ GGally::ggpairs()
 # Do there appear to be any outliers in the data? Are any predictors skewed?
 
 # Approach KJ 3.1 (b)
-# Outliers can be detected through visualizations like boxplots. 
+# Outliers can be detected through visualizations like boxplots. By plotting the
+# outliers in red, it is apparent how many there are, and if the data may need to
+# be transformed. 
 
 ggplot(glass2, aes(x = "", y = value)) +
   geom_boxplot(fill = "lightblue", outlier.color = "red") +
@@ -122,6 +125,22 @@ ggplot(glass2, aes(x = "", y = value)) +
 # (these are predictors where most of the values are the same), and highly 
 # correlated predictors that may lead to collinearity issues and increase model 
 # variance. 
+
+# Check for missing values
+na_counts <- map_dfc(Glass, ~ sum(is.na(.x)))
+names(na_counts) <- paste0("NA_", names(Glass))
+
+distinct_counts <- map_dfc(Glass, ~ n_distinct(.x, na.rm = TRUE))
+names(distinct_counts) <- paste0("T_", names(Glass))
+
+sum_missing <- bind_cols(na_counts, distinct_counts)
+
+# In the summary of missing values dataframe, we can see that no indicators have
+# missing values, which means imputations are not necessary. 
+
+# Data Transformation: Centering and Scaling Data
+trans_center <- preProcess(glass2, method="center")
+trans_scale <- preProcess(glass2, method="scale")
 
 
 ################################### KJ 3.2 #####################################
