@@ -139,8 +139,13 @@ sum_missing <- bind_cols(na_counts, distinct_counts)
 # missing values, which means imputations are not necessary. 
 
 # Data Transformation: Centering and Scaling Data
-trans_center <- preProcess(glass2, method="center")
-trans_scale <- preProcess(glass2, method="scale")
+# Note: cannot use the glass2 version because the PreProcess() function is 
+# intended for wide datasets. When typing trans into the console, we can see that 
+# nine indicators were center and scaled, and that one indicator was ignored. 
+trans <- preProcess(Glass, method=c("center","scale"))
+
+# Can add in the Box-Cox method as well by adding it into the method arugment
+trans <- preProcess(Glass, method=c("center", "scale", "BoxCox"))
 
 
 ################################### KJ 3.2 #####################################
