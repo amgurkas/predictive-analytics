@@ -15,6 +15,7 @@ library(mlbench)
 library(gridExtra)
 library(GGally)
 library(caret)
+library(stats)
 
 ################################## KJ 3.1 ######################################
 # Problem Introduction
@@ -147,6 +148,21 @@ trans <- preProcess(Glass, method=c("center","scale"))
 # Can add in the Box-Cox method as well by adding it into the method arugment
 trans <- preProcess(Glass, method=c("center", "scale", "BoxCox"))
 
+# To identify problematic predictors we can filter data for near-zero variance 
+# predictors (these are predictors where most of the values are the same), and 
+# highly correlated predictors that may lead to collinearity issues and increase 
+# model variance. 
+
+# if there are any near-zero variance predictors, they would be captured by the
+# nearZeroVar function from the caret package.
+nearZeroVar(Glass)
+
+# for highly correlated indicators, the cor() function from the caret package 
+# can be used. 
+Glass <- Glass %>% 
+  select(-Type)
+corr <- stats::cor(Glass)
+dim(corr)
 
 ################################### KJ 3.2 #####################################
 # 3.2. The soybean data can also be found at the UC Irvine Machine Learning
@@ -155,13 +171,24 @@ trans <- preProcess(Glass, method=c("center", "scale", "BoxCox"))
 # conditions (e.g., temperature, precipitation) and plant conditions (e.g., left 
 # spots, mold growth). The outcome labels consist of 19 distinct classes.
 
-# The data can be loaded via:
-# > library(mlbench)
-# > data(Soybean)
-# > ## See ?Soybean for details
+data(Soybean)
+
 #   (a) Investigate the frequency distributions for the categorical predictors. Are
 # any of the distributions degenerate in the ways discussed earlier in this
 # chapter?
+
+nearZeroVar(Soybean)
+colnames(Soybean[,c(19,26,28)])
+
+ggplot(Soybean, aes(Class)) +
+  geom_histogram(stat="count", fill = "steelblue", color = "black")
+
+# The "leaf.mild", "mycelium", and "seclerotia" have near zero variance. 
+
+# need to pivot ?? looking for categorical variables ??
+
+ggplot()
+
 #   (b) Roughly 18% of the data are missing. Are there particular predictors that
 # are more likely to be missing? Is the pattern of missing data related to
 # the classes?
