@@ -282,6 +282,7 @@ ggplot(books_plot, aes(x = Sales, fill = Type)) +
   theme_minimal()
 
 # Use the ses() function to forecast each series, and plot the forecasts.
+
 # Compute the RMSE values for the training data in each case.
 
 ###############################################################################
