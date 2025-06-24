@@ -249,11 +249,37 @@ sb_cleaned_opt2 <- Soybean %>%
 
 # Plot the series and discuss the main features of the data.
 data(books)
-autoplot(books)
 
-# how to determine the main features of the data 
-# note: task is to forecast the next four days' sales for pb and hc. need to see
-# what unit the time is in. 
+# Approach
+# Step 1: Determine the main features of the data by examining the:
+#   (1) Trend
+#   (2) Seasonality
+#   (3) Heteroscedasticity
+#   (4) Level shifts or structural changes
+
+autoplot(books)+
+  ggtitle("Sales of Paperback and Hardcover Books")+
+  xlab("Days")+
+  ylab("Count")
+# There is an upward trend. 
+
+length(books)
+frequency(books)
+summary(books)
+
+books_plot <- books %>%
+  as.data.frame() %>%
+  pivot_longer(cols = everything(), names_to = "Type", values_to = "Sales")
+
+# Distribution of Book Sales 
+# This is showing that hardcover is slightly right skewed.
+ggplot(books_plot, aes(x = Sales, fill = Type)) +
+  geom_histogram(aes(y = ..density..),alpha = 0.6, position = "identity", bins = 15) +
+  geom_density(alpha = 0.2, color = "red") +
+  facet_wrap(~Type) +
+  labs(title = "Distribution of Book Sales by Type",
+       x = "Number of Sales per Day", y = "Frequency") +
+  theme_minimal()
 
 # Use the ses() function to forecast each series, and plot the forecasts.
 # Compute the RMSE values for the training data in each case.
