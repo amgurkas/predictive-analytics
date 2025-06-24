@@ -246,8 +246,10 @@ sb_cleaned_opt2 <- Soybean %>%
 # Data set books contains the daily sales of paperback and hardcover books at the 
 # same store. The task is to forecast the next four days’ sales for paperback and 
 # hardcover books.
-# 
+
 # Plot the series and discuss the main features of the data.
+data(books)
+autoplot(books)
 # Use the ses() function to forecast each series, and plot the forecasts.
 # Compute the RMSE values for the training data in each case.
 
