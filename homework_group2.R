@@ -250,6 +250,11 @@ sb_cleaned_opt2 <- Soybean %>%
 # Plot the series and discuss the main features of the data.
 data(books)
 autoplot(books)
+
+# how to determine the main features of the data 
+# note: task is to forecast the next four days' sales for pb and hc. need to see
+# what unit the time is in. 
+
 # Use the ses() function to forecast each series, and plot the forecasts.
 # Compute the RMSE values for the training data in each case.
 
