@@ -16,6 +16,7 @@ library(gridExtra)
 library(GGally)
 library(caret)
 library(stats)
+library(impute)
 
 ################################## KJ 3.1 ######################################
 # Problem Introduction
@@ -177,23 +178,66 @@ data(Soybean)
 # any of the distributions degenerate in the ways discussed earlier in this
 # chapter?
 
+# The "leaf.mild", "mycelium", and "seclerotia" have near zero variance. 
 nearZeroVar(Soybean)
 colnames(Soybean[,c(19,26,28)])
 
 ggplot(Soybean, aes(Class)) +
-  geom_histogram(stat="count", fill = "steelblue", color = "black")
-
-# The "leaf.mild", "mycelium", and "seclerotia" have near zero variance. 
-
-# need to pivot ?? looking for categorical variables ??
-
-ggplot()
+  geom_histogram(stat="count", fill = "steelblue", color = "black") + 
+  coord_flip()
 
 #   (b) Roughly 18% of the data are missing. Are there particular predictors that
 # are more likely to be missing? Is the pattern of missing data related to
 # the classes?
+
+# Check for missing values
+sum_missing_sb <- map_dfr(names(Soybean), function(var) {
+  col_data <- Soybean[[var]]
+  tibble(
+    "indicator" = var,
+    "Total" = sum(!is.na(col_data)),
+    "NA" = sum(is.na(col_data)),
+    "PropNA" = sum(is.na(col_data))/sum(!is.na(col_data)),
+    "NotMissing" = abs(sum(!is.na(col_data))-sum(is.na(col_data))),
+    "PropNotMissing" = abs(sum(!is.na(col_data))-sum(is.na(col_data)))/sum(!is.na(col_data))
+  )
+})
+
+missing_plot_data <- sum_missing_sb %>%
+  select(-PropNotMissing,-PropNA,-Total) %>% 
+  pivot_longer(cols = c( "NA",
+                        "NotMissing"), 
+               names_to = "type", 
+               values_to = "count") 
+
+ggplot(missing_plot_data, aes(x = reorder(indicator, -count, sum), y = count, fill = type)) + 
+  geom_bar(position="fill", stat="identity")+
+  coord_flip()+ 
+  labs(
+    title = "Proportion of Missing Indicator Values",
+    x ="Indicator",
+    y = "Proportion"
+  )
+
 #   (c) Develop a strategy for handling missing data, either by eliminating
 # predictors or imputation.
+sb_cleaned <- Soybean %>% 
+  select(-Class) %>% 
+  mutate_if(is.factor, as.numeric)
+
+sb_processed <- preProcess(sb_cleaned, method='knnImpute')
+
+# If we wanted to eliminate the indicators that have a significant amount of 
+# missing data, we could simply remove the variables from the dataset:
+problem_indicators <- sum_missing_sb %>% 
+  group_by(indicator) %>% 
+  filter(PropNA > .2) 
+print(problem_indicators$indicator)
+
+# hail sever seed.tmt lodging should be removed because the proportion of missing
+# values is over 20%
+sb_cleaned_opt2 <- Soybean %>% 
+  select(-hail, -sever, -seed.tmt, -lodging)
 
 ###############################################################################
 # HA 7.5
