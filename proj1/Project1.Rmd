@@ -4,7 +4,7 @@ author: "Alyssa Gurkas"
 date: "2025-06-25"
 output: word_document
 ---
-Part B consists of a simple dataset of residential power usage for January 1998 until December 2013.  Your assignment is to model these data and create a monthly forecast for 2014.  The data is given in a single file.  The variable ‘KWH’ is power consumption in Kilowatt hours, the rest is straight forward.    Add these as separate tab to your existing XLSX file above – clearly labeled.  
+Part B consists of a simple dataset of residential power usage for January 1998 until December 2013.  Your assignment is to model these data and create a monthly forecast for 2014.  The data is given in a single file.  The variable ‘KWH’ is power consumption in Kilowatt hours, the rest is straight forward. Add these as separate tab to your existing XLSX file above – clearly labeled.  
 ```{r load-libraries}
 library(tidyverse)
 library(readxl)
@@ -12,7 +12,7 @@ library(GGally)
 ```
 
 ```{r load-data}
-raw_data <- read_excel("proj1/ResidentialCustomerForecastLoad-624.xlsx")
+raw_data <- read_excel("ResidentialCustomerForecastLoad-624.xlsx")
 ```
 
 ```{r eda-check-str}
@@ -88,22 +88,72 @@ ggplot(data, aes(x = `date`, y = KWH)) +
   theme_minimal() +
   labs(title = "Time Series of Energy Usage", x = "Date", y = "Kilowatts per Hour")
 ```
+# insert sentence about slight increase over time.
 
-3. Visualize Overall Trends
-Plot KWH over time to identify:
-Trends (increasing/decreasing)
-Seasonal patterns
-Outliers
-Structural breaks
+```{r seasonal-patterns}
+data_seasonal <- data |> 
+  mutate(
+    month = month(date),
+    year = year(date)
+  )
 
-```{r}
+data_seasonal$month <- factor(month.abb[as.numeric(data_seasonal$month)],
+                              levels = month.abb)
 
+ggplot(data_seasonal, aes(x = month, y = KWH, group = year, color = as.factor(year))) +
+  geom_line() +
+  labs(
+    title = "Seasonal Line Plot of Energy Usage",
+    x = "Month",
+    y = "Kilowatts per Hour",
+    color = "Year"
+  ) +
+  theme_minimal()+
+   theme(plot.title = element_text(hjust = 0.5))
+```
+```{r subseries-plot}
+ggplot(data_seasonal, aes(x = year, y = KWH)) +
+  geom_line() +
+  facet_wrap(~month)+
+  labs(
+    title = "Seasonal Subseries Plot of Energy Usage",
+    x = "Year",
+    y = "Kilowatts per Hour",
+    color = "Year"
+  ) +
+  theme_minimal()+
+   theme(plot.title = element_text(hjust = 0.5))
 ```
 
 4. Decompose the Time Series
 Using STL decomposition (Seasonal-Trend decomposition using Loess) or classical decomposition:
 Extract and visualize trend, seasonality, and residual components.
 Look for changing seasonal patterns or non-linear trends.
+
+```{r convert-ts}
+start_year <- year(min(data$date))
+start_month <- month(min(data$date))
+
+ts_data <- ts(data$KWH,
+              start = c(start_year, start_month),
+              frequency = 12)
+```
+
+```{r ts-decomp}
+decomposed <- decompose(ts_data, type = "additive")
+plot(decomposed)
+```
+
+```{stl-decomp}
+stl <- stl(ts_data, s.window = "periodic")
+plot(stl)
+```
+
+```{r}
+stl |>  seasadj() |>  naive() |> 
+  autoplot() + ylab("Energy Usage in KWH") +
+  ggtitle("Forecasts of 2014 Seasonally Adjusted Energy Data")
+```
 
 5. Seasonality & Autocorrelation
 Use seasonal plots and subseries plots to explore recurring patterns.
