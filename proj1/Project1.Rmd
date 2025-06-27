@@ -4,18 +4,24 @@ author: "Alyssa Gurkas"
 date: "2025-06-25"
 output: word_document
 ---
-Part B consists of a simple dataset of residential power usage for January 1998 until December 2013.  Your assignment is to model these data and create a monthly forecast for 2014.  The data is given in a single file.  The variable ‘KWH’ is power consumption in Kilowatt hours, the rest is straight forward. Add these as separate tab to your existing XLSX file above – clearly labeled. 
+## Forecasting Residential Energy Usage for 2014
 
+### Loading the R Packages
 ```{r load-libraries}
 library(tidyverse)
+library(lubridate)
 library(readxl)
 library(openxlsx)
+library(forecast)
+library(fpp2)
 ```
 
+#### Loading the excel spreadsheet data
 ```{r load-data}
 raw_data <- read_excel("ResidentialCustomerForecastLoad-624.xlsx")
 ```
 
+#### Checking the Structure of the data
 ```{r eda-check-str}
 str(raw_data)
 ```
@@ -112,6 +118,7 @@ ggplot(data_seasonal, aes(x = month, y = KWH, group = year, color = as.factor(ye
   theme_minimal()+
    theme(plot.title = element_text(hjust = 0.5))
 ```
+
 ```{r subseries-plot}
 ggplot(data_seasonal, aes(x = year, y = KWH)) +
   geom_line() +
@@ -179,7 +186,7 @@ select(CaseSequence,`YYYY-MMM`,`KWH`)
 
 ```{r produce-excel}
 wb <- loadWorkbook("ResidentialCustomerForecastLoad-624.xlsx")
-addWorksheet(wb, "KWH-2014-Forecast") 
-writeData(wb, "KWH-2014-Forecast", kwh_2014)
-saveWorkbook(wb, "ResidentialCustomerForecastLoad-624.xlsx", overwrite = TRUE)
+# addWorksheet(wb, "KWH-2014-Forecast") 
+# writeData(wb, "KWH-2014-Forecast", kwh_2014)
+# saveWorkbook(wb, "ResidentialCustomerForecastLoad-624.xlsx", overwrite = TRUE)
 ```
