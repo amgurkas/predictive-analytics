@@ -8,7 +8,6 @@ Part B consists of a simple dataset of residential power usage for January 1998 
 ```{r load-libraries}
 library(tidyverse)
 library(readxl)
-library(GGally)
 ```
 
 ```{r load-data}
@@ -36,7 +35,7 @@ data <- raw_data |>
 ```
 
 ```{r summarize-kwh}
-# Summarize KWH values (min, max, mean, quartiles).
+# Summarize KWH values (min, max, mean, quantiles).
 summary <- data |> 
   summarise(
     min = min(KWH),
@@ -144,25 +143,25 @@ decomposed <- decompose(ts_data, type = "additive")
 plot(decomposed)
 ```
 
-```{stl-decomp}
+```{r stl-decomp}
 stl <- stl(ts_data, s.window = "periodic")
 plot(stl)
 ```
 
-```{r}
+```{r stl-forecast}
 stl |>  seasadj() |>  naive() |> 
   autoplot() + ylab("Energy Usage in KWH") +
-  ggtitle("Forecasts of 2014 Seasonally Adjusted Energy Data")
+  ggtitle("Forecasts of Seasonally Adjusted Energy Data")
 ```
 
-5. Seasonality & Autocorrelation
-Use seasonal plots and subseries plots to explore recurring patterns.
-Use ACF (autocorrelation function) and PACF (partial ACF) plots to assess serial correlation.
+```{r 2014-forecast}
+model <- ets(ts_data)
+forecast_2014 <- forecast(model, h = 12)
+autoplot(forecast_2014)+
+ylab("Energy Usage in KWH") +
+ggtitle("Forecasts for 2014 Energy Data")
+```
 
-6. Distributional Analysis
-Histogram and density plots of KWH to assess distribution.
-Boxplots by month or year to identify seasonal effects or unusual periods.
+```{r produce-excel}
 
-7. Missing Values and Data Quality Checks
-Scan for and handle missing values, zeroes, or anomalies in KWH.
-Check for gaps in the monthly sequence.
+```
