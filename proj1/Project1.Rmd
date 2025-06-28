@@ -2,8 +2,9 @@
 title: "Project1"
 author: "Alyssa Gurkas"
 date: "2025-06-25"
-output: word_document
-  reference_docx: cerulean-style.docx
+output:
+  word_document:
+    reference_docx: cerulean-style.docx
 ---
 
 ```{r setup, include = FALSE}
