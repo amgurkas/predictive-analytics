@@ -797,10 +797,11 @@ Using these methods, the forecast for 2014 has a wide range.
 
 ## Forecasting for 2014 Energy Use
 
-### ETS Modeling
+### Error, Trend, and Seasonality (ETS) Modeling
 Since the residuals and overall trend are increasing but the trend and 
-seasonality are strong and well-separated, a forecasting model such as ETS or 
-ARIMA should be used to project energy use in 2014.
+seasonality are strong and well-separated, a forecasting model like ETS should be 
+used to project energy use in 2014.
+
 ```{r 2014-forecast}
 adjusted_series <- seasadj(stl) #seasonally adjusting the stl decomposition
 ets_model <- ets(adjusted_series) #modeling the adjusted series
@@ -839,3 +840,31 @@ addWorksheet(wb, "KWH-2014-Forecast") # adding the spreadsheet
 writeData(wb, "KWH-2014-Forecast", kwh_2014) # adding the 2014 forecasted data
 saveWorkbook(wb, "ResidentialCustomerForecastLoad-624.xlsx", overwrite = TRUE) #saving the workbook and overwriting the existing file
 ```
+
+### Summary and Recommendations – Part B – Residential Energy Forecasting
+##### Key Improvements Made:
+*Data Preparation*: Cleaned 192 months of residential energy usage data (1998–2013) and removed one missing value.
+*Exploratory Analysis*: Assessed trends, distribution, and seasonality using time series visualizations and decomposition plots.
+*Decomposition*: Applied STL to separate trend, seasonal, and residual components.
+*Forecasting*: Developed a monthly forecast for 2014 using seasonally adjusted data and ETS modeling.
+
+#### Methodology Summary:
+- Used STL decomposition with additive seasonal adjustment
+- Modeled 2014 forecasts using naive() on the seasonally adjusted series
+- Evaluated trend, seasonality, and residuals using visual and statistical diagnostics
+
+#### Key Findings – Part B – Energy Analysis
+*Trend*: Energy usage showed a significant increase from 2008 to 2013.
+*Seasonality*: Strong monthly seasonal effects were consistently present.
+*Residuals*: Increasing variability post-2008 suggests growing forecast uncertainty.
+*Forecast*: 2014 projections indicate a continued upward trend in usage, with confidence intervals widening over time.
+
+### Next Steps – Part B – Energy Analysis
+*Monitor Forecast Accuracy*: 
+- Compare actual 2014 values to projected usage.
+- Use residual diagnostics to refine model assumptions over time.
+*Plan for Volatility*:
+- Increasing noise suggests the need to account for external variability in future planning.
+- Consider more flexible models (e.g., ARIMA, ensemble methods) if forecast error increases.
+*Expand Model Inputs*:
+Future models could include exogenous factors (e.g., weather, population growth) to improve predictive power.
