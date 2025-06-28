@@ -3,7 +3,19 @@ title: "Project1"
 author: "Alyssa Gurkas"
 date: "2025-06-25"
 output: word_document
+  reference_docx: cerulean-style.docx
 ---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,         # Show R code in the document
+  results = 'markup',  # Show R output
+  warning = FALSE,     # Suppress warning messages
+  error = FALSE,       # Suppress error messages
+  message = FALSE,     # Suppress regular messages (optional, but common)
+  fig.align = "center" # Center-align all figures
+)
+```
 
 ## Executive Summary
 ### Part A - ATM Forecast
@@ -486,7 +498,7 @@ print(ATM2_ets)
 
 #### Export Results
 
-```{r export}
+```{r export, eval=FALSE}
 # Export monthly total forecasts with confidence intervals
 final_export <- forecast_summary %>%
   mutate(across(where(is.numeric), ~round(., 2)))
@@ -631,7 +643,8 @@ map(p_funs, ~ .x(data$KWH)) |> as_tibble_row() # applying prop. funct to the KWH
 ```
 Since the median value, i.e., 50%, is closer to q1 than q3, and the mean is 
 higher than the median, the data appears to be slightly right-skewed 
-(positively skewed). This may be influenced by higher outliers or a long upper tail.
+(positively skewed). This may be influenced by higher outliers or a long upper 
+tail.
 
 
 ### Plotting the Distribution
@@ -758,8 +771,6 @@ decomposed <- decompose(ts_data, type = "additive") #specifying the type of seas
 plot(decomposed)
 ```
 
-
-
 #### Seasonal-Trend decomposition using Loess (STL) Decomposition 
 STL decomposition may be preferable to classic decomposition if the seasonality
 is changing over time. For this dataset, it would be preferable as the summers
@@ -793,7 +804,6 @@ stl |>
   theme(plot.title = element_text(hjust = 0.5))
 ```
 Using these methods, the forecast for 2014 has a wide range.
-
 
 ## Forecasting for 2014 Energy Use
 
@@ -834,7 +844,7 @@ select(CaseSequence,`YYYY-MMM`,`KWH`)
 ```
 
 #### Exporting results to the excel spreadsheet
-```{r produce-excel}
+```{r produce-excel, eval=FALSE}
 wb <- loadWorkbook("ResidentialCustomerForecastLoad-624.xlsx") #loading the workbook
 addWorksheet(wb, "KWH-2014-Forecast") # adding the spreadsheet
 writeData(wb, "KWH-2014-Forecast", kwh_2014) # adding the 2014 forecasted data
