@@ -22,53 +22,79 @@ raw_data <- read_excel("ResidentialCustomerForecastLoad-624.xlsx")
 ```
 
 #### Checking the Structure of the data
+The data has the columns, "CaseSequence" (numeric), "YYYY-MMM" (character strings), 
+and "KWH" (numeric), and 192 observations. 
 ```{r eda-check-str}
 str(raw_data)
 ```
 #### Identifying Duplicate and Missing Values
+To forecast this data, it is necessary to check for duplicative or missing values.
+Duplicate values can skew data, and many forecasting models assume regular time 
+interval with one value per period. Missing values should also be handled through 
+imputations or removed. Otherwise, this can return errors when using functions 
+such as stl() and missing values can distort trend detection, weaken seasonal 
+signals, and reduce forecast quality.
 ```{r eda-na-missing}
 dups <- raw_data |>  
   group_by_all() |>  
-  filter(n() > 1) |>  
+  filter(n() > 1) |>  # taking a count of the duplicative values
   ungroup()
 
-missing <- colSums(is.na(raw_data))
+missing <- colSums(is.na(raw_data)) # taking the sum of the missing values 
 ```
 
-
 #### Data Cleaning:
-[insert sentence about what this is doing]
 ```{r rem-na}
 data <- raw_data |> 
-  na.omit() |> 
-  mutate(date=as.Date(paste0(`YYYY-MMM`,"-01"), format = "%Y-%b-%d")) |> 
-  select(-`YYYY-MMM`)
+  na.omit() |> # removing missing values
+  mutate(date=as.Date(paste0(`YYYY-MMM`,"-01"), format = "%Y-%b-%d")) |> #formatting dates
+  select(-`YYYY-MMM`) # removing the `YYYY-MMM` column
 ```
 
 #### Summarizing the Data
-[insert sentence about what this is doing]
+Summary statistics can be used to get a general understanding of the data's 
+distribution, central tendency, and variability. There's a wide spread between 
+the smallest (minimum) and largest (maximum) energy usage values. The 
+interquartile range is the spread between the 25th and 75th percentiles. The IQR
+is significantly smaller than the full range (from min to max). This implies that 
+most data points are clustered in a smaller region, but there are a few very 
+large values stretching the distribution. The standard deviation measures how much 
+values typically deviate from the mean. The standard deviation is high relative 
+to the mean, suggesting that the data is fairly spread out.
+
 ```{r summarize-kwh}
 # Summarize KWH values (min, max, mean, quantiles).
 summary <- data |> 
   summarise(
-    min = min(KWH),
-    max = max(KWH),
-    mean = mean(KWH),
-    iqr = IQR(KWH),
-    sd= sd(KWH)
+    min = min(KWH), # min value calc
+    max = max(KWH), # max value calc
+    mean = mean(KWH), # mean value calc
+    iqr = IQR(KWH), # interquartile range calc
+    sd= sd(KWH) # standard deviation calc
   )
-
-p <- c(0.25, 0.5, 0.75)
-p_names <- map_chr(p, ~paste0(.x*100, "%"))
-p_funs <- map(p, ~partial(quantile, probs = .x, na.rm = TRUE)) |>  
-  set_names(nm = p_names)
-
-map(p_funs, ~ .x(data$KWH)) |> as_tibble_row()
+summary
 ```
+
+#### Calculating the quantiles 
+```{r quantiles-calc}
+p <- c(0.25, 0.5, 0.75) # defining the proportions
+p_names <- map_chr(p, ~paste0(.x*100, "%")) # multiplying proportions by 100 and adding "%"
+p_funs <- map(p, ~partial(quantile, probs = .x, na.rm = TRUE)) |>  # defining the funct. 
+  set_names(nm = p_names) # setting the col names
+
+map(p_funs, ~ .x(data$KWH)) |> as_tibble_row() # applying prop. funct to the KWH data
+```
+Since the median value, i.e., 50%, is closer to q1 than q3, and the mean is 
+higher than the median, the data appears to be slightly right-skewed 
+(positively skewed). This may be influenced by higher outliers or a long upper tail.
+
+
 ### Plotting the Distribution
+To better understand the distribution and spread of the data, a histogram can be
+used.
 ###### Setting the binwidth  
 ```{r calc-binwidth}
-binwidth <- 3.5 * sd(data$KWH) / nrow(data)^(1/3)
+binwidth <- 2 * IQR(data$KWH) / nrow(data)^(1/3) #calculating binwidth using the Freedman-Diaconis Rule (good for skewed or non-normal data)
 ```
 
 #### Distribution of Energy Use 
@@ -88,6 +114,9 @@ ggplot(raw_data, aes(x = KWH)) +
     x = "Kilowatts per Hour", y = "Frequency") +
   theme_minimal()
 ```
+As anticipated, the data is slightly right-skewed and is somewhat bimodal. To 
+better understand the outliers, a boxplot can be used to visualize the spread. 
+
 #### Boxplot of Energy Use
 ```{r boxplot}
 ggplot(data, aes(y=KWH)) + 
@@ -95,6 +124,8 @@ ggplot(data, aes(y=KWH)) +
   theme_minimal() +
   labs(title="Boxplot of Kilowatts per Hour", y="Kilowatts per Hour")
 ```
+As seen in this boxplot, the data is not evenly spread, and there is one outlier.
+The data is right skewed. 
 
 #### Time Series of Residential Energy Usage
 ```{r}
@@ -103,7 +134,12 @@ ggplot(data, aes(x = `date`, y = KWH)) +
   theme_minimal() +
   labs(title = "Time Series of Energy Usage", x = "Date", y = "Kilowatts per Hour")
 ```
-# insert sentence about slight increase over time.
+When plotting the time series, it is evident that there is a slight increase in
+energy use over time. This time series plot indicates there is additive seasonality.
+There is also one outlier, from July 2010. The decrease in energy use may be 
+legitimate, or an error. Across the US, the energy use in July 2010 did not 
+decrease, however, there was a ConEd power outage in New York City, in July 2010, 
+which may explain this value. 
 
 #### Seasonal Plots
 ```{r seasonal-patterns}
@@ -127,11 +163,14 @@ ggplot(data_seasonal, aes(x = month, y = KWH, group = year, color = as.factor(ye
   theme_minimal()+
    theme(plot.title = element_text(hjust = 0.5))
 ```
+From the Seasonal Line Plot of Energy Use, it is clear that energy use generally
+peaks from June-September and December-February. Energy use seems to be the 
+lowest in May and November.
 
 #### Seasonal Subseries Plot
 ```{r subseries-plot}
 ggplot(data_seasonal, aes(x = year, y = KWH)) +
-  geom_line() +
+  geom_line(color = "blue") +
   facet_wrap(~month)+
   labs(
     title = "Seasonal Subseries of Energy Use",
@@ -142,71 +181,115 @@ ggplot(data_seasonal, aes(x = year, y = KWH)) +
   theme_minimal()+
    theme(plot.title = element_text(hjust = 0.5))
 ```
+From the Seasonal Subseries Energy Use Plot, it is evident that energy use is 
+generally increasing over time. Although for August, it is beginning to trend 
+downward. 
 
-4. Decompose the Time Series
-Using STL decomposition (Seasonal-Trend decomposition using Loess) or classical decomposition:
-Extract and visualize trend, seasonality, and residual components.
-Look for changing seasonal patterns or non-linear trends.
+### EDIT NEEDED: SHOULD BE USING STL + ETS 
+### will need to redo this section so that it uses the output from the stl decomp
 
 #### Converting the data to a time series
+To model and forecast the data, the data should be converted from a dataframe 
+to a time series. To do this, the start year and start month should be defined.
 ```{r convert-ts}
-start_year <- year(min(data$date))
-start_month <- month(min(data$date))
+start_year <- year(min(data$date)) #defining the start year
+start_month <- month(min(data$date)) #defining the start month
 
-ts_data <- ts(data$KWH,
-              start = c(start_year, start_month),
-              frequency = 12)
+ts_data <- ts(data$KWH, # selecting the predictor
+              start = c(start_year, start_month), #defining the start year and date
+              frequency = 12) #defining the frequency (monthly)
 ```
 
 #### Decomposing the data
-[insert why]
+Data decomposition separates the time series into different components such as
+observed, trend, seasonal, and random fluctuations (or noise). Noise is calculated
+as:
+$Noise = ObservedValue - Estimated Trend - Estimated Seasonality$
+
+The noise should be relatively small, random, normally distributed, and have no
+autocorrelation in order to model and forecast the data. 
 ```{r ts-decomp}
-decomposed <- decompose(ts_data, type = "additive")
+decomposed <- decompose(ts_data, type = "additive") #specifying the type of seasonal component (additive)
 plot(decomposed)
 ```
 
-#### STL Decomposition 
-[insert why]
+
+
+#### Seasonal-Trend decomposition using Loess (STL) Decomposition 
+STL decomposition may be preferable to classic decomposition if the seasonality
+is changing over time. For this dataset, it would be preferable as the summers
+are getting hotter over time. When using STL, it provides the original data, the
+seasonal trend, the overall trend, and the remainder (residual/noise) component.
 ```{r stl-decomp}
-stl <- stl(ts_data, s.window = "periodic")
+stl <- stl(ts_data, s.window = "periodic",robust=TRUE) #setting robust=TRUE to handle outliers
 plot(stl)
 ```
+From the STL plot, the trend is increasing over time, especially within the last
+decade. Additionally, the noise is increasing from 2008 onward. This indicates that
+while the seasonality had an additive trend, it seems to be becoming multiplicative. 
 
-#### STL Forecasting 
-[insert why]
+####  Forecasting 
+From 2008 to 2013, the STL decomposition shows a significant upward trend in 
+energy usage, suggesting systemic increases in demand. Meanwhile, the residual 
+component becomes more variable in this period, indicating increased 
+unpredictability not explained by seasonal or trend effects. To forecast the data,
+seasonality can be removed using seaadj() and a naive forecast is used. 
+
+By using a naive forecast, it uses the most recent actual value as the forecast 
+for the next period.
 ```{r stl-forecast}
-stl |>  seasadj() |>  naive() |> 
+# forecasting the STL decomposition output using the seasonally adjusted output,
+# and a naive forecast 
+stl |>  
+  seasadj() |>  
+  naive() |> 
   autoplot() + ylab("Energy Usage in KWH") +
   ggtitle("Forecasts of Seasonally Adjusted Energy Data")
 ```
+Using these methods, the forecast for 2014 has a wide range.
 
-### Forecasting for 2014 Energy Use
+
+## Forecasting for 2014 Energy Use
+
+### ETS Modeling
+Since the residuals and overall trend are increasing but the trend and 
+seasonality are strong and well-separated, a forecasting model such as ETS or 
+ARIMA should be used to project energy use in 2014.
 ```{r 2014-forecast}
-model <- ets(ts_data)
-forecast_2014 <- forecast(model, h = 12)
-autoplot(forecast_2014)+
+adjusted_series <- seasadj(stl) #seasonally adjusting the stl decomposition
+ets_model <- ets(adjusted_series) #modeling the adjusted series
+forecast_2014 <- forecast(ets_model, h = 12) #forecasting for the next 12 periods (next year)
+
+autoplot(forecast_2014)+ #plotting the forecast output
 ylab("Energy Usage in KWH") +
 ggtitle("Forecasts for 2014 Energy Data")
 ```
 
+The forecast for 2014 energy usage suggests a continuation of the upward trend 
+observed between 2008 and 2013, with recurring seasonal peaks. The model 
+projects that energy consumption will continue to be higher compared to earlier 
+years, reflecting an increased baseline demand. Forecast uncertainty (seen in the 
+plot as the shaded confidence intervals) widens over time, which aligns with the 
+STL decomposition output depicting increased residual volatility. 
+
 #### Creating a 2014 data frame
 ```{r produce-kwh-2014-df}
 kwh_2014 <- tibble(
-  date = seq(ymd("2014-01-01"), by = "month", length.out = 12),
-  forecast_kwh = as.numeric(forecast_2014$mean)
+  date = seq(ymd("2014-01-01"), by = "month", length.out = 12), # creating date col
+  KWH = as.numeric(forecast_2014$mean) # populating forecasted values as KWH
 ) |> 
 mutate(
-  CaseSequence=row_number() + 924,
-  "YYYY-MMM"= format(date, "%Y-%b")
+  CaseSequence=row_number() + 924, # adding case sequence to be uniform w/ excel spreadsheet
+  "YYYY-MMM"= format(date, "%Y-%b") #formatting dates to match original data 
 ) |> 
-  rename("KWH"="forecast_kwh") |> 
 select(CaseSequence,`YYYY-MMM`,`KWH`)
 ```
 
 #### Exporting results to the excel spreadsheet
 ```{r produce-excel}
 wb <- loadWorkbook("ResidentialCustomerForecastLoad-624.xlsx")
-# addWorksheet(wb, "KWH-2014-Forecast") 
-# writeData(wb, "KWH-2014-Forecast", kwh_2014)
-# saveWorkbook(wb, "ResidentialCustomerForecastLoad-624.xlsx", overwrite = TRUE)
+removeWorksheet(wb, "KWH-2014-Forecast")
+addWorksheet(wb, "KWH-2014-Forecast") 
+writeData(wb, "KWH-2014-Forecast", kwh_2014)
+saveWorkbook(wb, "ResidentialCustomerForecastLoad-624.xlsx", overwrite = TRUE)
 ```
