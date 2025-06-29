@@ -1,7 +1,7 @@
 ---
-title: "Project1"
-author: "Alyssa Gurkas"
-date: "2025-06-25"
+title: "Project 1, Group 2"
+author: "Alyssa Gurkas, Deirdre Flynn, Marc Fridson"
+date: "2025-06-29"
 output:
   word_document:
     reference_docx: cerulean-style.docx
@@ -18,9 +18,9 @@ knitr::opts_chunk$set(
 )
 
 # Set theme
-theme_set(theme_minimal() + 
-  theme(plot.title = element_text(size = 14, face = "bold"),
-        axis.title = element_text(size = 12)))
+ggplot2::theme_set(ggplot2::theme_minimal() + 
+  ggplot2::theme(plot.title = ggplot2::element_text(size = 14, face = "bold"),
+        axis.title = ggplot2::element_text(size = 12)))
 ```
 
 ## Executive Summary
@@ -68,9 +68,7 @@ This analysis provides a comprehensive water flow forecasting system for a dual-
 -   7-day ahead forecasts with uncertainty quantification
 -   Individual pipe flow predictions based on historical contribution ratios
 
-## Analysis
-
-### Part A - ATM Forecast Analysis
+## Part A - ATM Forecast Analysis
 
 #### Loading the R Packages
 ```{r load-libraries}
@@ -100,7 +98,7 @@ str(ATM)
 head(ATM)
 ```
 
-#### Data Cleaning
+### Data Cleaning
 ```{r data-cleaning}
 # Ensure correct data types
 ATM$DATE <- as.Date(ATM$DATE)
@@ -141,7 +139,7 @@ missing_summary <- ATM_complete %>%
 print(missing_summary)
 ```
 
-#### Exploratory Data Analysis
+### Exploratory Data Analysis
 
 ```{r eda-plots}
 # Plot all ATMs to understand patterns
@@ -260,7 +258,7 @@ if("ATM1" %in% names(atm_comparison) && "ATM4" %in% names(atm_comparison)) {
 }
 ```
 
-#### Forecasting Approach
+### Forecasting Approach
 
 ##### Strategy for Each ATM
 
@@ -308,9 +306,9 @@ ATM2_daily <- ATM_clean %>%
   arrange(DATE)
 ```
 
-##### Model Selection and Fitting
+#### Model Selection and Fitting
 
-```{r model-fitting}
+```{r atm-model-fitting}
 # Use appropriate models for monthly forecasting with limited data
 
 # For ATM1
@@ -370,9 +368,9 @@ cat("\nBest model for ATM1:", best_model_ATM1, "\n")
 cat("Best model for ATM2:", best_model_ATM2, "\n")
 ```
 
-##### Generating Forecasts for May 2010
+#### Generating Forecasts for May 2010
 
-```{r generate-forecasts}
+```{r generate-atm-forecasts}
 # Generate monthly total forecasts for May 2010
 
 # Use best models or ETS as default (similar to student's choice)
@@ -428,9 +426,9 @@ cat("\nSimplified forecast output:\n")
 print(final_forecast)
 ```
 
-##### Visualization of Forecasts
+### Visualization of Forecasts
 
-```{r visualize-forecasts}
+```{r visualize-atm-forecasts}
 # Visualize historical monthly totals and forecasts
 
 # Prepare historical monthly data for plotting
@@ -494,9 +492,9 @@ ggplot(daily_patterns, aes(x = Weekday, y = AvgCash, fill = ATM)) +
   theme_minimal()
 ```
 
-##### Model Diagnostics
+### Model Diagnostics
 
-```{r diagnostics}
+```{r atm-diagnostics}
 # Check residuals for selected models
 cat("=== Model Diagnostics ===\n")
 
@@ -518,7 +516,7 @@ print(ATM2_ets)
 
 #### Export Results
 
-```{r export, eval=FALSE}
+```{r atm-export, eval=FALSE}
 # Export monthly total forecasts with confidence intervals
 final_export <- forecast_summary %>%
   mutate(across(where(is.numeric), ~round(., 2)))
@@ -539,7 +537,8 @@ cat("\nMonthly forecasts exported successfully!\n")
 print(final_export)
 ```
 
-### Summary and Recommendations - Part A - ATM Analysis
+### Summary and Recommendations 
+#### Part A - ATM Forecast Analysis
 
 ##### Key Improvements Made:
 
@@ -571,7 +570,8 @@ print(final_export)
     -   Residuals show no significant autocorrelation
     -   Forecasts include 80% and 95% confidence intervals
 
-### Recommendations - Part A - ATM Analysis
+### Recommendations
+####  Part A - ATM Analysis
 
 1.  **Data Collection**:
     -   Investigate why ATM4 duplicates ATM1 data
@@ -584,7 +584,8 @@ print(final_export)
     -   Strong day-of-week patterns suggest different customer behaviors
     -   Consider consolidating ATM4 if truly duplicate
 
-### Next Steps - Part A - ATM Analysis
+### Next Steps
+#### Part A - ATM Analysis
 
 -   Implement automated anomaly detection for future data quality issues
 -   Consider external factors (holidays, paydays) for improved accuracy
@@ -620,7 +621,7 @@ dups <- raw_data |>
 missing <- colSums(is.na(raw_data)) # taking the sum of the missing values 
 ```
 
-#### Data Cleaning:
+### Data Cleaning:
 ```{r rem-na}
 data <- raw_data |> 
   na.omit() |> # removing missing values
@@ -676,7 +677,7 @@ binwidth <- 2 * IQR(data$KWH) / nrow(data)^(1/3) #calculating binwidth using the
 ```
 
 #### Distribution of Energy Use 
-```{r histo}
+```{r histo-energy}
 options(scipen=999)
 
 ggplot(raw_data, aes(x = KWH)) +
@@ -697,7 +698,7 @@ As anticipated, the data is slightly right-skewed and is somewhat bimodal. To
 better understand the outliers, a boxplot can be used to visualize the spread. 
 
 #### Boxplot of Energy Use
-```{r boxplot}
+```{r boxplot-energy}
 ggplot(data, aes(y=KWH)) + 
   geom_boxplot(fill="lightblue", color="darkblue") + 
   theme_minimal() +
@@ -708,7 +709,7 @@ As seen in this boxplot, the data is not evenly spread, and there is one outlier
 The data is right skewed. 
 
 #### Time Series of Residential Energy Usage
-```{r}
+```{r ts-energy}
 ggplot(data, aes(x = `date`, y = KWH)) +
   geom_line(color = "blue") +
   theme_minimal() +
@@ -723,7 +724,7 @@ decrease, however, there was a ConEd power outage in New York City, in July 2010
 which may explain this value. 
 
 #### Seasonal Plots
-```{r seasonal-patterns}
+```{r seasonal-patterns-energy}
 data_seasonal <- data |> 
   mutate(
     month = month(date),
@@ -749,7 +750,7 @@ peaks from June-September and December-February. Energy use seems to be the
 lowest in May and November.
 
 #### Seasonal Subseries Plot
-```{r subseries-plot}
+```{r subseries-plot-energy}
 ggplot(data_seasonal, aes(x = year, y = KWH)) +
   geom_line(color = "blue") +
   facet_wrap(~month)+
@@ -786,7 +787,7 @@ $Noise = ObservedValue - Estimated Trend - Estimated Seasonality$
 
 The noise should be relatively small, random, normally distributed, and have no
 autocorrelation in order to model and forecast the data. 
-```{r ts-decomp}
+```{r ts-decomp-energy}
 decomposed <- decompose(ts_data, type = "additive") #specifying the type of seasonal component (additive)
 plot(decomposed)
 ```
@@ -796,7 +797,7 @@ STL decomposition may be preferable to classic decomposition if the seasonality
 is changing over time. For this dataset, it would be preferable as the summers
 are getting hotter over time. When using STL, it provides the original data, the
 seasonal trend, the overall trend, and the remainder (residual/noise) component.
-```{r stl-decomp}
+```{r stl-decomp-energy}
 stl <- stl(ts_data, s.window = "periodic",robust=TRUE) #setting robust=TRUE to handle outliers
 plot(stl)
 ```
@@ -804,7 +805,7 @@ From the STL plot, the trend is increasing over time, especially within the last
 decade. Additionally, the noise is increasing from 2008 onward. This indicates that
 while the seasonality had an additive trend, it seems to be becoming multiplicative. 
 
-####  Forecasting 
+###  Forecasting 
 From 2008 to 2013, the STL decomposition shows a significant upward trend in 
 energy usage, suggesting systemic increases in demand. Meanwhile, the residual 
 component becomes more variable in this period, indicating increased 
@@ -813,7 +814,7 @@ seasonality can be removed using seaadj() and a naive forecast is used.
 
 By using a naive forecast, it uses the most recent actual value as the forecast 
 for the next period.
-```{r stl-forecast}
+```{r stl-forecast-energy}
 # forecasting the STL decomposition output using the seasonally adjusted output,
 # and a naive forecast 
 stl |>  
@@ -825,14 +826,14 @@ stl |>
 ```
 Using these methods, the forecast for 2014 has a wide range.
 
-## Forecasting for 2014 Energy Use
+### Forecasting for 2014 Energy Use
 
-### Error, Trend, and Seasonality (ETS) Modeling
+#### Error, Trend, and Seasonality (ETS) Modeling
 Since the residuals and overall trend are increasing but the trend and 
 seasonality are strong and well-separated, a forecasting model like ETS should be 
 used to project energy use in 2014.
 
-```{r 2014-forecast}
+```{r 2014-forecast-energy}
 adjusted_series <- seasadj(stl) #seasonally adjusting the stl decomposition
 ets_model <- ets(adjusted_series) #modeling the adjusted series
 forecast_2014 <- forecast(ets_model, h = 12) #forecasting for the next 12 periods (next year)
@@ -871,8 +872,10 @@ writeData(wb, "KWH-2014-Forecast", kwh_2014) # adding the 2014 forecasted data
 saveWorkbook(wb, "ResidentialCustomerForecastLoad-624.xlsx", overwrite = TRUE) #saving the workbook and overwriting the existing file
 ```
 
-### Summary and Recommendations – Part B – Residential Energy Forecasting
-##### Key Improvements Made:
+### Summary and Recommendations
+#### Part B – Residential Energy Forecasting
+
+#### Key Improvements Made:
 *Data Preparation*: Cleaned 192 months of residential energy usage data (1998–2013) and removed one missing value.
 *Exploratory Analysis*: Assessed trends, distribution, and seasonality using time series visualizations and decomposition plots.
 *Decomposition*: Applied STL to separate trend, seasonal, and residual components.
@@ -883,13 +886,15 @@ saveWorkbook(wb, "ResidentialCustomerForecastLoad-624.xlsx", overwrite = TRUE) #
 - Modeled 2014 forecasts using naive() on the seasonally adjusted series
 - Evaluated trend, seasonality, and residuals using visual and statistical diagnostics
 
-#### Key Findings – Part B – Energy Analysis
+### Key Findings
+#### Part B – Energy Analysis
 *Trend*: Energy usage showed a significant increase from 2008 to 2013.
 *Seasonality*: Strong monthly seasonal effects were consistently present.
 *Residuals*: Increasing variability post-2008 suggests growing forecast uncertainty.
 *Forecast*: 2014 projections indicate a continued upward trend in usage, with confidence intervals widening over time.
 
-### Next Steps – Part B – Energy Analysis
+### Next Steps
+#### Part B – Energy Analysis
 *Monitor Forecast Accuracy*: 
 - Compare actual 2014 values to projected usage.
 - Use residual diagnostics to refine model assumptions over time.
@@ -899,7 +904,7 @@ saveWorkbook(wb, "ResidentialCustomerForecastLoad-624.xlsx", overwrite = TRUE) #
 *Expand Model Inputs*:
 Future models could include exogenous factors (e.g., weather, population growth) to improve predictive power.
 
-## Part B - Forecasting Power Analysis
+## Part C - Waterflow Forecasting Analysis
 
 ### Introduction
 
@@ -907,7 +912,7 @@ Water flow forecasting is critical for effective water resource management and i
 
 ### Data Loading and Preprocessing
 
-```{r load-data}
+```{r load-water-data}
 cat("\n========== PART C: WATER FLOW FORECAST ==========\n\n")
 
 # Load data
@@ -940,11 +945,12 @@ cat("Pipe 2 - Time span:",
 
 ### Step 1: Hourly Aggregation
 
-The raw data contains sub-hourly measurements at different frequencies. We aggregate these to hourly intervals for more stable time series analysis.
+The raw data contains sub-hourly measurements at different frequencies. We 
+aggregate these to hourly intervals for more stable time series analysis.
 
 #### Handle Different Recording Frequencies
 
-```{r hourly-aggregation}
+```{r hourly-aggregation-water}
 cat("STEP 1: Aggregating to hourly intervals...\n\n")
 
 # Function for robust hourly aggregation
@@ -973,7 +979,7 @@ cat("Pipe 2 - Hourly data points:", nrow(pipe2_hourly), "\n\n")
 
 #### Align Time Series
 
-```{r align-timeseries}
+```{r align-timeseries-water}
 # Find the common time range
 start_time <- max(min(pipe1_hourly$Hour), min(pipe2_hourly$Hour))
 end_time <- min(max(pipe1_hourly$Hour), max(pipe2_hourly$Hour))
@@ -1022,7 +1028,7 @@ cat("Missing values in final dataset:", sum(is.na(total_flow$Total)), "\n\n")
 
 ### Step 2: Exploratory Data Analysis
 
-```{r exploratory-analysis, fig.height=10}
+```{r exploratory-analysis-water, fig.height=10}
 cat("STEP 2: Creating exploratory visualizations...\n")
 
 # Plot 1: Individual pipe flows over time
@@ -1081,7 +1087,7 @@ exploratory_plots <- grid.arrange(p1, p2, p3, p4, ncol = 2, nrow = 2)
 
 ### Step 3: Time Series Modeling
 
-```{r timeseries-prep}
+```{r timeseries-prep-water}
 cat("STEP 3: Building time series models...\n")
 
 # Create time series object
@@ -1099,7 +1105,7 @@ cat("Series is", ifelse(adf_test$p.value < 0.05, "stationary", "non-stationary")
 
 #### Time Series Decomposition
 
-```{r decomposition, fig.height=8}
+```{r decomposition-water, fig.height=8}
 # Decomposition
 if(length(ts_data) >= 48) {
   decomp <- stl(ts_data, s.window = "periodic", robust = TRUE)
@@ -1117,7 +1123,7 @@ if(length(ts_data) >= 48) {
 
 #### Model Fitting and Comparison
 
-```{r model-fitting}
+```{r model-fitting-water}
 cat("Fitting time series models with focus on seasonality...\n\n")
 
 # Model 1: SARIMA with forced seasonality
@@ -1207,7 +1213,7 @@ cat("\nBest model based on RMSE:", best_model_name, "\n\n")
 
 ### Step 4: Generate Forecasts
 
-```{r generate-forecasts}
+```{r generate-water-forecasts}
 cat("STEP 4: Generating 1-week forecast...\n")
 
 # Use the best model or STL+ETS if it performs well
@@ -1258,7 +1264,7 @@ cat("Pipe 2:", round(pipe2_pct * 100, 1), "%\n\n")
 
 #### Main Forecast Plot
 
-```{r forecast-visualization, fig.height=7}
+```{r forecast-water-visualization, fig.height=7}
 cat("STEP 5: Creating forecast visualizations...\n")
 
 # Main forecast plot
@@ -1295,7 +1301,7 @@ print(p_forecast)
 
 #### Forecasted Daily Pattern
 
-```{r forecast-pattern}
+```{r forecast-water-pattern}
 # Forecast pattern plot
 forecast_pattern <- forecast_df %>%
   mutate(
@@ -1333,7 +1339,7 @@ if(pattern_range < 1) {
 
 ### Step 6: Model Diagnostics
 
-```{r diagnostics, fig.height=8}
+```{r diagnostics-water, fig.height=8}
 cat("\nSTEP 6: Checking model diagnostics...\n")
 
 # Get the actual model used for forecasting
@@ -1368,7 +1374,7 @@ print(p_compare)
 
 ### Step 7: Export Results
 
-```{r export-results}
+```{r export-water-results}
 cat("\nSTEP 7: Exporting results to Excel...\n")
 
 # Create forecast dataframes for each pipe
@@ -1415,7 +1421,7 @@ cat("Results exported to Water_Flow_Forecasts.xlsx\n")
 
 ### Summary of Results
 
-```{r summary}
+```{r water-summary}
 cat("\n========== ANALYSIS COMPLETE ==========\n\n")
 cat("Summary of Results:\n")
 cat("-----------------\n")
@@ -1431,9 +1437,9 @@ kable(summary_stats, caption = "Analysis Summary")
 3.  **Seasonal Patterns**: The forecast captures daily variations in water usage
 4.  **Uncertainty**: 80% and 95% confidence intervals provide robust uncertainty estimates
 
-## Files Created
+##### Files Created
 
-The analysis generates the following output files:
+The waterflow analysis generates the following output files:
 
 -   `water_flow_exploration.png` - Exploratory data analysis plots
 -   `water_flow_decomposition.png` - Time series decomposition
