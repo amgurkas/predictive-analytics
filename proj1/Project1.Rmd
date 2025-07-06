@@ -79,7 +79,6 @@ library(readxl)
 library(openxlsx)
 library(forecast)
 library(fpp2)
-library(writexl)
 library(tsibble)
 library(feasts)
 library(zoo)
@@ -836,7 +835,7 @@ used to project energy use in 2014.
 ```{r 2014-forecast-energy}
 adjusted_series <- seasadj(stl) #seasonally adjusting the stl decomposition
 ets_model <- ets(adjusted_series) #modeling the adjusted series
-forecast_2014 <- forecast(ets_model, h = 12) #forecasting for the next 12 periods (next year)
+forecast_2014 <- forecast(ets_model, h = 12, level = c(80, 95)) #forecasting for the next 12 periods (next year)
 
 autoplot(forecast_2014)+ #plotting the forecast output
 ylab("Energy Usage in KWH") +
@@ -855,13 +854,17 @@ STL decomposition output depicting increased residual volatility.
 ```{r produce-kwh-2014-df}
 kwh_2014 <- tibble(
   date = seq(ymd("2014-01-01"), by = "month", length.out = 12), # creating date col
-  KWH = as.numeric(forecast_2014$mean) # populating forecasted values as KWH
+  Forecast_KWH = as.numeric(forecast_2014$mean), # populating forecasted values as KWH
+  Lo80 = as.numeric(forecast_2014$lower[,1]),
+  Hi80 = as.numeric(forecast_2014$upper[,1]),
+  Lo95 = as.numeric(forecast_2014$lower[,2]),
+  Hi95 = as.numeric(forecast_2014$upper[, 2])
 ) |> 
 mutate(
   CaseSequence=row_number() + 924, # adding case sequence to be uniform w/ excel spreadsheet
   "YYYY-MMM"= format(date, "%Y-%b") #formatting dates to match original data 
 ) |> 
-select(CaseSequence,`YYYY-MMM`,`KWH`)
+select(CaseSequence,`YYYY-MMM`,`Forecast_KWH`,Lo80,Hi80,Lo95,Hi95)
 ```
 
 #### Exporting results to the excel spreadsheet
