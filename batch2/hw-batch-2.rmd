@@ -135,6 +135,7 @@ of the manufacturing process?
 # insert analysis here
 ```
 
+**ALYSSA**
 # KJ 7.5 
 *Instructions*: Exercise 6.3 describes data for a chemical manufacturing process. Use the same data imputation, data splitting, and pre-processing steps as before and train several nonlinear regression models.
 
@@ -254,6 +255,7 @@ more predictors?
 # insert analysis here
 ```
 
+**ALYSSA**
 ## KJ 8.3(b)
 *Instructions*: Which model do you think would be more predictive of other 
 samples?
@@ -362,5 +364,29 @@ the biological or process predictors and their relationship with yield?
 ### Analysis - KJ 8.7(c)
 
 ```{r kj-8.7.c.-analysis}
+# insert analysis here
+```
+
+
+**ALYSSA**
+# Recommender Problem
+
+## Market Basket Analysis 
+
+*Instructions*: Imagine 10000 receipts sitting on your table. Each receipt represents a transaction with items that were purchased. The receipt is a representation of stuff that went into a customer’s basket – and therefore 
+‘Market Basket Analysis’.
+
+That is exactly what the Groceries Data Set contains: a collection of receipts 
+with each line representing 1 receipt and the items purchased. Each line is called 
+a transaction and each column in a row represents an item.
+
+Your assignment is to use R to mine the data for association rules.  Provide information on  all relevant statistics like support, confidence, lift and others. Also, Provide your top 10 rules by lift with the associated metrics. . 
+
+### Approach - Recommender Problem
+[insert approach explaination here].
+
+### Analysis - Recommender Problem
+
+```{r recommender-problem-analysis}
 # insert analysis here
 ```
