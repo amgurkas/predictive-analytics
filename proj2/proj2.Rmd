@@ -1,0 +1,73 @@
+---
+title: "Project 2"
+author: "Alyssa Gurkas"
+date: "2025-07-10"
+output: word_document
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,         # Show R code in the document
+  results = 'markup',  # Show R output
+  warning = FALSE,     # Suppress warning messages
+  error = FALSE,       # Suppress error messages
+  message = FALSE,     # Suppress regular messages (optional, but common)
+  fig.align = "center" # Center-align all figures
+)
+
+# Set theme
+ggplot2::theme_set(ggplot2::theme_minimal() + 
+  ggplot2::theme(plot.title = ggplot2::element_text(size = 14, face = "bold"),
+        axis.title = ggplot2::element_text(size = 12)))
+```
+
+## Executive Summary
+
+[Insert text for the executive summary of the report]
+
+```{r exec-summary}
+# this is a placeholder in case we want to include any plots or code outputs in the exec summary
+
+```
+
+
+## Methodology 
+
+[Insert text description on the methodology used for this analysis]
+
+
+```{r methodology, echo=FALSE}
+# this is a placeholder in case we want to include any plots or code outputs in the methodology
+```
+
+### Data Cleaning
+
+[Insert text description on the data cleaning process]
+
+```{r data-cleaning, echo=FALSE}
+# this is a placeholder in case we want to include any plots or code outputs in the data cleaning
+```
+
+### Data Analysis
+
+[Insert text description on the data analysis process]
+
+```{r data-cleaning, echo=FALSE}
+# this is a placeholder in case we want to include any plots or code outputs in the data cleaning
+```
+
+## Findings
+
+[Insert findings here]
+
+```{r data-cleaning, echo=FALSE}
+# this is a placeholder in case we want to include any plots or code outputs in the findings section
+```
+
+## Conclusion and Recommendations
+
+[Insert conclusionary statement and recommendations on next steps of this analysis here.]
+
+```{r data-cleaning, echo=FALSE}
+# this is a placeholder in case we want to include any plots or code outputs in the conclusion and recommendations section
+```
