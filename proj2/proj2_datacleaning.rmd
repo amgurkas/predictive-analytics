@@ -62,8 +62,8 @@ library(corrplot)
 library(caret)
 
 # Read the datasets
-train_data <- read_excel("StudentData - TO MODEL.xlsx")
-eval_data <- read_excel("StudentEvaluation- TO PREDICT.xlsx")
+train_data <- read_excel("data/StudentData - TO MODEL.xlsx")
+eval_data <- read_excel("data/StudentEvaluation- TO PREDICT.xlsx")
 
 # The training data doesn't have proper column names, so we'll assign them
 # based on the column metadata
