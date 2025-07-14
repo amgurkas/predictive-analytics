@@ -1,0 +1,396 @@
+---
+title: "Project 2"
+author: "Alyssa Gurkas"
+date: "2025-07-10"
+output: word_document
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,         # Show R code in the document
+  results = 'markup',  # Show R output
+  warning = FALSE,     # Suppress warning messages
+  error = FALSE,       # Suppress error messages
+  message = FALSE,     # Suppress regular messages (optional, but common)
+  fig.align = "center" # Center-align all figures
+)
+
+# Set theme
+ggplot2::theme_set(ggplot2::theme_minimal() + 
+  ggplot2::theme(plot.title = ggplot2::element_text(size = 14, face = "bold"),
+        axis.title = ggplot2::element_text(size = 12)))
+```
+
+## Executive Summary
+
+[Insert text for the executive summary of the report]
+
+```{r exec-summary}
+# this is a placeholder in case we want to include any plots or code outputs in the exec summary
+
+```
+
+## Methodology
+
+[Insert text description on the methodology used for this analysis]
+
+```{r methodology, echo=FALSE}
+# this is a placeholder in case we want to include any plots or code outputs in the methodology
+```
+
+### Data Cleaning
+
+The data cleaning process is a critical step in preparing our beverage manufacturing dataset for pH prediction modeling. Given that pH is a key performance indicator (KPI) that must conform to critical ranges, ensuring data quality is paramount for accurate predictions. Our data cleaning approach focuses on the following key areas:
+
+1.  **Missing Value Management**: We systematically identify and handle missing values using appropriate imputation strategies based on the nature of each variable. For production variables, we employ median imputation for numeric features to maintain robustness against outliers, while using mode imputation for categorical variables.
+
+2.  **Data Type Verification**: We ensure all variables are correctly typed, converting any misclassified variables to their appropriate data types to prevent modeling errors.
+
+3.  **Outlier Detection**: While outliers in production data can represent genuine process variations, we identify extreme values that may indicate data collection errors or equipment malfunctions.
+
+4.  **Feature Engineering**: We create additional features that may improve pH prediction accuracy, such as interaction terms between related production variables.
+
+5.  **Data Consistency**: We verify that all production measurements fall within physically possible ranges and align with expected manufacturing parameters.
+
+```{r data-cleaning}
+# Load required libraries
+library(tidyverse)
+library(readxl)
+library(VIM)
+library(naniar)
+library(corrplot)
+library(caret)
+
+# Read the datasets
+train_data <- read_excel("StudentData - TO MODEL.xlsx")
+eval_data <- read_excel("StudentEvaluation- TO PREDICT.xlsx")
+
+# The training data doesn't have proper column names, so we'll assign them
+# based on the column metadata
+column_info <- read_excel("Copy of Data Columns, Types.xlsx")
+
+# Check if training data has generic column names
+if(all(startsWith(names(train_data), "..."))) {
+  # Read without column names to avoid the auto-generated names
+  train_data <- read_excel("StudentData - TO MODEL.xlsx", col_names = FALSE)
+  
+  # Assign proper column names from metadata
+  names(train_data) <- column_info$Name[1:ncol(train_data)]
+  
+  # Remove the first column if it's all NA (likely Brand Code which is empty in training)
+  if(all(is.na(train_data[[1]]))) {
+    train_data <- train_data[, -1]
+  }
+}
+
+# Display basic information about the datasets
+cat("Training data dimensions:", dim(train_data), "\n")
+cat("Evaluation data dimensions:", dim(eval_data), "\n")
+
+# Examine the structure of training data
+str(train_data)
+
+# Check for missing values in training data
+missing_summary <- train_data %>%
+  summarise_all(~sum(is.na(.))) %>%
+  pivot_longer(everything(), names_to = "Variable", values_to = "Missing_Count") %>%
+  mutate(Missing_Percentage = round((Missing_Count / nrow(train_data)) * 100, 2)) %>%
+  filter(Missing_Count > 0) %>%
+  arrange(desc(Missing_Percentage))
+
+if(nrow(missing_summary) > 0) {
+  print("Variables with missing values:")
+  print(missing_summary)
+  
+  # Visualize missing data patterns
+  gg_miss_var(train_data, show_pct = TRUE) + 
+    theme_minimal() + 
+    labs(title = "Percentage of Missing Values by Variable")
+}
+
+# Handle missing values
+# For numeric variables: use median imputation
+# For categorical variables: use mode imputation or create 'Unknown' category
+numeric_vars <- names(train_data)[sapply(train_data, is.numeric)]
+categorical_vars <- names(train_data)[!sapply(train_data, is.numeric)]
+
+# Create a function to get mode
+get_mode <- function(x) {
+  uniq_x <- unique(x[!is.na(x)])
+  uniq_x[which.max(tabulate(match(x, uniq_x)))]
+}
+
+# Impute missing values in training data
+train_clean <- train_data
+
+# Numeric imputation with median
+for(var in numeric_vars) {
+  if(sum(is.na(train_clean[[var]])) > 0) {
+    median_val <- median(train_clean[[var]], na.rm = TRUE)
+    train_clean[[var]][is.na(train_clean[[var]])] <- median_val
+    cat(paste("Imputed", sum(is.na(train_data[[var]])), "missing values in", var, "with median:", median_val, "\n"))
+  }
+}
+
+# Categorical imputation with mode
+for(var in categorical_vars) {
+  if(sum(is.na(train_clean[[var]])) > 0) {
+    mode_val <- get_mode(train_clean[[var]])
+    train_clean[[var]][is.na(train_clean[[var]])] <- mode_val
+    cat(paste("Imputed", sum(is.na(train_data[[var]])), "missing values in", var, "with mode:", mode_val, "\n"))
+  }
+}
+
+# Apply the same cleaning process to evaluation data
+eval_clean <- eval_data
+
+# Store medians and modes from training data for consistent imputation
+imputation_values <- list()
+
+# Numeric imputation using training data statistics
+for(var in numeric_vars) {
+  if(var %in% names(eval_clean)) {
+    # Always store the median from training data
+    median_val <- median(train_data[[var]], na.rm = TRUE)
+    imputation_values[[var]] <- median_val
+    
+    # Apply imputation if needed
+    if(sum(is.na(eval_clean[[var]])) > 0) {
+      eval_clean[[var]][is.na(eval_clean[[var]])] <- median_val
+    }
+  }
+}
+
+# Categorical imputation using training data modes
+for(var in categorical_vars) {
+  if(var %in% names(eval_clean)) {
+    # Always store the mode from training data
+    mode_val <- get_mode(train_data[[var]])
+    imputation_values[[var]] <- mode_val
+    
+    # Apply imputation if needed
+    if(sum(is.na(eval_clean[[var]])) > 0) {
+      eval_clean[[var]][is.na(eval_clean[[var]])] <- mode_val
+    }
+  }
+}
+
+# Check for any infinite values and replace with NA then impute
+train_clean <- train_clean %>%
+  mutate(across(where(is.numeric), ~replace(., is.infinite(.), NA)))
+
+eval_clean <- eval_clean %>%
+  mutate(across(where(is.numeric), ~replace(., is.infinite(.), NA)))
+
+# Re-impute any new NAs created from infinite values
+for(var in numeric_vars) {
+  if(sum(is.na(train_clean[[var]])) > 0) {
+    median_val <- median(train_clean[[var]], na.rm = TRUE)
+    train_clean[[var]][is.na(train_clean[[var]])] <- median_val
+  }
+  
+  if(var %in% names(eval_clean) && sum(is.na(eval_clean[[var]])) > 0) {
+    median_val <- median(train_data[[var]], na.rm = TRUE)
+    eval_clean[[var]][is.na(eval_clean[[var]])] <- median_val
+  }
+}
+
+# Identify and remove zero variance predictors
+nzv <- nearZeroVar(train_clean, saveMetrics = TRUE)
+zero_var_cols <- rownames(nzv)[nzv$zeroVar]
+
+if(length(zero_var_cols) > 0) {
+  cat("\nRemoving zero variance columns:", paste(zero_var_cols, collapse = ", "), "\n")
+  train_clean <- train_clean[, !names(train_clean) %in% zero_var_cols]
+  eval_clean <- eval_clean[, !names(eval_clean) %in% zero_var_cols]
+}
+
+# Check for highly correlated predictors (excluding PH if it exists)
+if("PH" %in% names(train_clean)) {
+  numeric_predictors <- train_clean %>%
+    select(where(is.numeric), -PH)
+} else {
+  numeric_predictors <- train_clean %>%
+    select(where(is.numeric))
+}
+
+if(ncol(numeric_predictors) > 1) {
+  cor_matrix <- cor(numeric_predictors, use = "complete.obs")
+  
+  # Find highly correlated variables (correlation > 0.95)
+  high_cor <- findCorrelation(cor_matrix, cutoff = 0.95)
+  
+  if(length(high_cor) > 0) {
+    high_cor_names <- names(numeric_predictors)[high_cor]
+    cat("\nHighly correlated variables to remove:", paste(high_cor_names, collapse = ", "), "\n")
+    train_clean <- train_clean[, !names(train_clean) %in% high_cor_names]
+    eval_clean <- eval_clean[, !names(eval_clean) %in% high_cor_names]
+  }
+}
+
+# Outlier Detection (from methodology step 3)
+cat("\n--- Outlier Detection ---\n")
+
+# Identify outliers using IQR method for numeric variables
+numeric_cols <- names(train_clean)[sapply(train_clean, is.numeric) & names(train_clean) != "PH"]
+outlier_summary <- data.frame()
+
+for(col in numeric_cols) {
+  Q1 <- quantile(train_clean[[col]], 0.25, na.rm = TRUE)
+  Q3 <- quantile(train_clean[[col]], 0.75, na.rm = TRUE)
+  IQR <- Q3 - Q1
+  lower_bound <- Q1 - 1.5 * IQR
+  upper_bound <- Q3 + 1.5 * IQR
+  
+  outliers <- sum(train_clean[[col]] < lower_bound | train_clean[[col]] > upper_bound, na.rm = TRUE)
+  
+  if(outliers > 0) {
+    outlier_summary <- rbind(outlier_summary, 
+                             data.frame(Variable = col, 
+                                        Outliers = outliers,
+                                        Percentage = round(outliers/nrow(train_clean)*100, 2)))
+  }
+}
+
+if(nrow(outlier_summary) > 0) {
+  cat("Variables with outliers:\n")
+  print(outlier_summary)
+}
+
+# Feature Engineering
+cat("\n--- Feature Engineering ---\n")
+
+# 1. Ratios between related process variables
+# Carbonation efficiency ratios
+train_clean$Carb_Efficiency <- train_clean$`Carb Volume` / (train_clean$`Carb Flow` + 0.01)
+eval_clean$Carb_Efficiency <- eval_clean$`Carb Volume` / (eval_clean$`Carb Flow` + 0.01)
+
+# Pressure ratios
+train_clean$Pressure_Ratio <- train_clean$`Carb Pressure` / (train_clean$`Fill Pressure` + 0.01)
+eval_clean$Pressure_Ratio <- eval_clean$`Carb Pressure` / (eval_clean$`Fill Pressure` + 0.01)
+
+# Hydraulic pressure average
+train_clean$Hyd_Pressure_Avg <- rowMeans(train_clean[, c("Hyd Pressure1", "Hyd Pressure2", "Hyd Pressure3", "Hyd Pressure4")], na.rm = TRUE)
+eval_clean$Hyd_Pressure_Avg <- rowMeans(eval_clean[, c("Hyd Pressure1", "Hyd Pressure2", "Hyd Pressure3", "Hyd Pressure4")], na.rm = TRUE)
+
+# Fill efficiency
+train_clean$Fill_Efficiency <- train_clean$`Fill Ounces` / (train_clean$`Filler Speed` + 0.01)
+eval_clean$Fill_Efficiency <- eval_clean$`Fill Ounces` / (eval_clean$`Filler Speed` + 0.01)
+
+# 2. Interaction terms between process parameters
+# Temperature and carbonation interaction (affects CO2 solubility)
+train_clean$Temp_Carb_Interaction <- train_clean$Temperature * train_clean$`Carb Pressure`
+eval_clean$Temp_Carb_Interaction <- eval_clean$Temperature * eval_clean$`Carb Pressure`
+
+# Carbonation temperature and pressure interaction
+train_clean$CarbTemp_CarbPress_Interaction <- train_clean$`Carb Temp` * train_clean$`Carb Pressure`
+eval_clean$CarbTemp_CarbPress_Interaction <- eval_clean$`Carb Temp` * eval_clean$`Carb Pressure`
+
+# Flow and pressure interaction
+train_clean$Flow_Pressure_Interaction <- train_clean$`Mnf Flow` * train_clean$`Pressure Vacuum`
+eval_clean$Flow_Pressure_Interaction <- eval_clean$`Mnf Flow` * eval_clean$`Pressure Vacuum`
+
+# 3. Polynomial features for non-linear relationships
+# Temperature squared (pH often has non-linear relationship with temperature)
+train_clean$Temperature_sq <- train_clean$Temperature^2
+eval_clean$Temperature_sq <- eval_clean$Temperature^2
+
+# Carbonation temperature squared
+train_clean$Carb_Temp_sq <- train_clean$`Carb Temp`^2
+eval_clean$Carb_Temp_sq <- eval_clean$`Carb Temp`^2
+
+# Density squared (affects fluid dynamics)
+train_clean$Density_sq <- train_clean$Density^2
+eval_clean$Density_sq <- eval_clean$Density^2
+
+# 4. Domain-specific transformations for pH prediction
+# Log transformation of flow rates (often more linear with pH)
+train_clean$Log_Carb_Flow <- log1p(train_clean$`Carb Flow`)  # log1p handles zeros
+eval_clean$Log_Carb_Flow <- log1p(eval_clean$`Carb Flow`)
+
+train_clean$Log_Mnf_Flow <- log1p(train_clean$`Mnf Flow`)
+eval_clean$Log_Mnf_Flow <- log1p(eval_clean$`Mnf Flow`)
+
+# CO2 volume to liquid volume ratio (critical for pH in carbonated beverages)
+train_clean$CO2_Liquid_Ratio <- train_clean$`PSC CO2` / (train_clean$`PC Volume` + 0.01)
+eval_clean$CO2_Liquid_Ratio <- eval_clean$`PSC CO2` / (eval_clean$`PC Volume` + 0.01)
+
+# Saturation index (combines pressure, temperature, and CO2)
+train_clean$Saturation_Index <- (train_clean$`Carb Pressure` * train_clean$`PSC CO2`) / (train_clean$`Carb Temp` + 273.15)
+eval_clean$Saturation_Index <- (eval_clean$`Carb Pressure` * eval_clean$`PSC CO2`) / (eval_clean$`Carb Temp` + 273.15)
+
+# Alcohol and carbonation interaction (if applicable to beverage type)
+train_clean$Alch_Carb_Interaction <- train_clean$`Alch Rel` * train_clean$`Carb Rel`
+eval_clean$Alch_Carb_Interaction <- eval_clean$`Alch Rel` * eval_clean$`Carb Rel`
+
+# Balling level transformation (sugar content affects pH)
+train_clean$Balling_Sqrt <- sqrt(abs(train_clean$`Balling Lvl`))
+eval_clean$Balling_Sqrt <- sqrt(abs(eval_clean$`Balling Lvl`))
+
+cat("Created", ncol(train_clean) - 31, "new features\n")
+
+# Data Consistency Verification (from methodology step 5)
+cat("\n--- Data Consistency Check ---\n")
+
+# Define physically possible ranges for key variables
+physical_ranges <- list(
+  Temperature = c(-5, 100),  # Celsius
+  `Carb Temp` = c(0, 50),    # Carbonation typically done cold
+  Density = c(0.8, 1.5),     # g/mL for beverages
+  PH = c(2, 8),              # Typical beverage pH range
+  `Oxygen Filler` = c(0, 100),  # PPM or percentage
+  `Fill Ounces` = c(0, 1000),   # Reasonable fill volume
+  `Carb Pressure` = c(0, 100),  # PSI
+  `Fill Pressure` = c(0, 100)   # PSI
+)
+
+# Check for values outside physical ranges
+for(var in names(physical_ranges)) {
+  if(var %in% names(train_clean)) {
+    out_of_range <- sum(train_clean[[var]] < physical_ranges[[var]][1] | 
+                        train_clean[[var]] > physical_ranges[[var]][2], na.rm = TRUE)
+    if(out_of_range > 0) {
+      cat(paste(var, ": ", out_of_range, " values outside expected range [", 
+                physical_ranges[[var]][1], ", ", physical_ranges[[var]][2], "]\n", sep = ""))
+    }
+  }
+}
+
+# Final check for data quality
+cat("\n--- Final Data Quality Check ---\n")
+cat("Training data after cleaning:", dim(train_clean), "\n")
+cat("Evaluation data after cleaning:", dim(eval_clean), "\n")
+cat("Missing values in cleaned training data:", sum(is.na(train_clean)), "\n")
+cat("Missing values in cleaned evaluation data:", sum(is.na(eval_clean)), "\n")
+
+# Save cleaned datasets for modeling
+write.csv(train_clean, "train_data_cleaned.csv", row.names = FALSE)
+write.csv(eval_clean, "eval_data_cleaned.csv", row.names = FALSE)
+
+# Save imputation values for future use
+saveRDS(imputation_values, "imputation_values.rds")
+```
+
+### Data Analysis
+
+[Insert text description on the data analysis process]
+
+```{r data-analysis, echo=FALSE}
+# this is a placeholder in case we want to include any plots or code outputs in the data analysis
+```
+
+## Findings
+
+[Insert findings here]
+
+```{r findings, echo=FALSE}
+# this is a placeholder in case we want to include any plots or code outputs in the findings section
+```
+
+## Conclusion and Recommendations
+
+[Insert conclusionary statement and recommendations on next steps of this analysis here.]
+
+```{r conclusion, echo=FALSE}
+# this is a placeholder in case we want to include any plots or code outputs in the conclusion and recommendations section
+```
