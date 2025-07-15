@@ -21,6 +21,18 @@ ggplot2::theme_set(ggplot2::theme_minimal() +
         axis.title = ggplot2::element_text(size = 12)))
 ```
 
+```{r load-libraries}
+# Loading all required libraries
+library(tidyverse)
+library(readxl)
+library(VIM)
+library(naniar)
+library(corrplot)
+library(caret)
+library(gbm)
+library(pdp)
+```
+
 ## Executive Summary
 
 [Insert text for the executive summary of the report]
@@ -40,7 +52,11 @@ ggplot2::theme_set(ggplot2::theme_minimal() +
 
 ### Data Cleaning
 
-The data cleaning process is a critical step in preparing our beverage manufacturing dataset for pH prediction modeling. Given that pH is a key performance indicator (KPI) that must conform to critical ranges, ensuring data quality is paramount for accurate predictions. Our data cleaning approach focuses on the following key areas:
+The data cleaning process is a critical step in preparing our beverage 
+manufacturing dataset for pH prediction modeling. Given that pH is a key 
+performance indicator (KPI) that must conform to critical ranges, ensuring data 
+quality is paramount for accurate predictions. Our data cleaning approach focuses 
+on the following key areas:
 
 1.  **Missing Value Management**: We systematically identify and handle missing values using appropriate imputation strategies based on the nature of each variable. For production variables, we employ median imputation for numeric features to maintain robustness against outliers, while using mode imputation for categorical variables.
 
@@ -52,27 +68,19 @@ The data cleaning process is a critical step in preparing our beverage manufactu
 
 5.  **Data Consistency**: We verify that all production measurements fall within physically possible ranges and align with expected manufacturing parameters.
 
-```{r data-cleaning}
-# Load required libraries
-library(tidyverse)
-library(readxl)
-library(VIM)
-library(naniar)
-library(corrplot)
-library(caret)
-
+```{r data-cleaning-intro}
 # Read the datasets
 train_data <- read_excel("data/StudentData - TO MODEL.xlsx")
-eval_data <- read_excel("data/StudentEvaluation- TO PREDICT.xlsx")
+eval_data <- read_excel("data/StudentEvaluation- TO PREDICT.xlsx") 
 
 # The training data doesn't have proper column names, so we'll assign them
 # based on the column metadata
-column_info <- read_excel("Copy of Data Columns, Types.xlsx")
+column_info <- read_excel("data/Copy of Data Columns, Types.xlsx") 
 
 # Check if training data has generic column names
 if(all(startsWith(names(train_data), "..."))) {
   # Read without column names to avoid the auto-generated names
-  train_data <- read_excel("StudentData - TO MODEL.xlsx", col_names = FALSE)
+  train_data <- read_excel("data/StudentData - TO MODEL.xlsx", col_names = FALSE)
   
   # Assign proper column names from metadata
   names(train_data) <- column_info$Name[1:ncol(train_data)]
@@ -103,7 +111,7 @@ if(nrow(missing_summary) > 0) {
   print(missing_summary)
   
   # Visualize missing data patterns
-  gg_miss_var(train_data, show_pct = TRUE) + 
+  naniar::gg_miss_var(train_data, show_pct = TRUE) + 
     theme_minimal() + 
     labs(title = "Percentage of Missing Values by Variable")
 }
@@ -195,8 +203,11 @@ for(var in numeric_vars) {
   }
 }
 
+### !!! NOTE FOR MARC: This code doesn't remove `Hyd Pressure 1` that has near zero variance 
+### !!! This should be edited to remove the near zero var col
+
 # Identify and remove zero variance predictors
-nzv <- nearZeroVar(train_clean, saveMetrics = TRUE)
+nzv <- caret::nearZeroVar(train_clean, saveMetrics = TRUE)
 zero_var_cols <- rownames(nzv)[nzv$zeroVar]
 
 if(length(zero_var_cols) > 0) {
@@ -227,9 +238,12 @@ if(ncol(numeric_predictors) > 1) {
     eval_clean <- eval_clean[, !names(eval_clean) %in% high_cor_names]
   }
 }
+```
 
-# Outlier Detection (from methodology step 3)
-cat("\n--- Outlier Detection ---\n")
+#### Outlier Detection 
+[Insert sentence about identifying outliers using IQR method for numeric values]
+```{r data-cleaning-outlier-detection}
+# outlier detection methodology is outlined in data cleaning step 3
 
 # Identify outliers using IQR method for numeric variables
 numeric_cols <- names(train_clean)[sapply(train_clean, is.numeric) & names(train_clean) != "PH"]
@@ -256,10 +270,11 @@ if(nrow(outlier_summary) > 0) {
   cat("Variables with outliers:\n")
   print(outlier_summary)
 }
+```
 
-# Feature Engineering
-cat("\n--- Feature Engineering ---\n")
-
+#### Feature Engineering
+[insert sentence about feature engineering.]
+```{r data-cleaning-feature-engineering}
 # 1. Ratios between related process variables
 # Carbonation efficiency ratios
 train_clean$Carb_Efficiency <- train_clean$`Carb Volume` / (train_clean$`Carb Flow` + 0.01)
@@ -308,6 +323,8 @@ eval_clean$Density_sq <- eval_clean$Density^2
 train_clean$Log_Carb_Flow <- log1p(train_clean$`Carb Flow`)  # log1p handles zeros
 eval_clean$Log_Carb_Flow <- log1p(eval_clean$`Carb Flow`)
 
+### !!! NOTE FOR MARC: there are 1184 NAs in the Log_Mnf_Flow in the `train_clean` df and 123 NAs in the `eval_clean` df !!!
+### !!! This is likely b/c there are negative numbers in this col !!!
 train_clean$Log_Mnf_Flow <- log1p(train_clean$`Mnf Flow`)
 eval_clean$Log_Mnf_Flow <- log1p(eval_clean$`Mnf Flow`)
 
@@ -328,10 +345,11 @@ train_clean$Balling_Sqrt <- sqrt(abs(train_clean$`Balling Lvl`))
 eval_clean$Balling_Sqrt <- sqrt(abs(eval_clean$`Balling Lvl`))
 
 cat("Created", ncol(train_clean) - 31, "new features\n")
+```
 
-# Data Consistency Verification (from methodology step 5)
-cat("\n--- Data Consistency Check ---\n")
-
+#### Data Consistency Check
+[insert sentence about data consistency check.]
+```{r data-cleaning-data-consistency}
 # Define physically possible ranges for key variables
 physical_ranges <- list(
   Temperature = c(-5, 100),  # Celsius
@@ -356,6 +374,7 @@ for(var in names(physical_ranges)) {
   }
 }
 
+# CHECK IF THIS SHOULD BE DIRECTLY IN THE BODY OF THE .RMD
 # Final check for data quality
 cat("\n--- Final Data Quality Check ---\n")
 cat("Training data after cleaning:", dim(train_clean), "\n")
@@ -364,19 +383,144 @@ cat("Missing values in cleaned training data:", sum(is.na(train_clean)), "\n")
 cat("Missing values in cleaned evaluation data:", sum(is.na(eval_clean)), "\n")
 
 # Save cleaned datasets for modeling
-write.csv(train_clean, "train_data_cleaned.csv", row.names = FALSE)
-write.csv(eval_clean, "eval_data_cleaned.csv", row.names = FALSE)
+write.csv(train_clean, "data/train_data_cleaned.csv", row.names = FALSE)
+write.csv(eval_clean, "data/eval_data_cleaned.csv", row.names = FALSE)
 
 # Save imputation values for future use
-saveRDS(imputation_values, "imputation_values.rds")
+saveRDS(imputation_values, "data/imputation_values.rds")
 ```
 
 ### Data Analysis
 
-[Insert text description on the data analysis process]
+[insert information on approach here]:
 
-```{r data-analysis, echo=FALSE}
-# this is a placeholder in case we want to include any plots or code outputs in the data analysis
+1.  **Exploratory Analysis**: Evaluate the distribution and relationships of the predictors in the training data.
+Focusing on:
+- Identifying key predictors using a Gradient Boost Model
+    - A "good" model will have a low RMSE (Root Mean Squared Error) and high $R^2$. 
+      The RMSE measures the average size of the prediction errors—how far the predicted values are       from the actual values.
+      $R^2$ (R-squared) measures the proportion of variance in the target (pH) that the model can        explain. A higher $R^2$ suggests the model is uncovering real structure in the data, and is        not just fitting to randomness.
+
+2.  **Identify the Best Modeling Approach**: [insert here]
+
+3.  **Evaluate the Model Performance**: [insert here]
+
+4.  **Predict on Evaluation Data**: [insert here]
+
+```{r data-analysis-eda, echo=FALSE}
+# Visualizations
+ggplot2::ggplot(train_clean, aes(x = PH)) + geom_histogram() # Understand the distribution of pH
+
+# bootstrap sampling 
+fitControl <- trainControl(
+                           method = "repeatedcv",
+                           number = 10,
+                           repeats = 10)
+
+# gradient boosting to identify key predictors 
+set.seed(825)
+# removing the col Log_Mnf_Flow b/c it has NAs
+train_clean <- train_clean |> 
+  select(-Log_Mnf_Flow)
+# running a GBM to identify key predictors
+gbmFit1 <- train(PH ~ ., data = train_clean, 
+                 method = "gbm", 
+                 trControl = fitControl,
+                 ## This last option is actually one
+                 ## for gbm() that passes through
+                 verbose = FALSE)
+
+# Interpreting the Output of the Model: the lowest RMSE and highest R^2 had:
+# 150 trees
+# Interaction depth = 3 (moderate complexity)
+# Shrinkage = 0.1 (learning rate)
+# RMSE (Root Mean Squared Error) = 0.1205
+# R^2 0.515
+# this suggests the model can explain about 51.5% of the variance in PH
+
+# calculating variable importance scores (identifying which predictors were most 
+# useful in reducing error across all trees)
+varImp(gbmFit1)
+
+# Plotting the variables based on their relative influence. The higher the score, 
+# the more important the predictor is for estimating pH.
+plot(varImp(gbmFit1), top = 20)
+
+get_top_predictors <- function(model, train_df, top_n = 10) {
+  # Get variable importance from the GBM model
+  var_imp <- caret::varImp(model, scale = TRUE)$importance
+  # Add variable names as a column
+  var_imp$Variable <- rownames(var_imp)
+  # Sort by importance and select top 10 vars
+  top_vars <- var_imp %>%
+    arrange(desc(Overall)) %>%
+    slice_head(n = top_n) %>%
+    pull(Variable)
+  # remove backticks
+  top_vars <- gsub("`", "", top_vars)
+  # Return those columns from the training dataset
+  top_df <- train_df[, c(top_vars, "PH")]  # Keep PH for EDA
+  
+  return(top_df)
+}
+
+train_clean_slim10 <- get_top_predictors(gbmFit1, train_clean, top_n = 10)
+train_clean_slim5 <- get_top_predictors(gbmFit1, train_clean, top_n = 5)
+
+GGally::ggpairs(train_clean_slim5) # top predictors vs. pH.
+```
+
+Based on the Ggpairs plot, it seems that Mnf_Flow and Flow_Pressure_Interaction 
+have multicollinearity. If a linear model is used, one of the predictors should 
+be removed.
+
+The key predictors are:
+1. CO2_Liquid_Ratio (domain knowledge predictor)
+2. Saturation_Index (domain knowledge predictor)
+3. Alch_Carb_Interaction (domain knowledge predictor)
+4. Flow_Pressure_Interaction
+5. Temperature
+6. Usage cont
+7. Alch Rel
+
+```{r data-analysis-modeling-approach, echo=FALSE}
+# creating df with only key predictors
+train_clean_key_predictors <- train_clean |> 
+  select(CO2_Liquid_Ratio,
+         Saturation_Index,
+         Alch_Carb_Interaction,
+         Flow_Pressure_Interaction,
+         Temperature,
+         `Usage cont`,
+         `Alch Rel`,
+         PH)
+
+# running a GBM with key predictors
+gbmFit2 <- train(PH ~ ., data = train_clean_key_predictors, 
+                 method = "gbm", 
+                 trControl = fitControl,
+                 ## This last option is actually one
+                 ## for gbm() that passes through
+                 verbose = FALSE)
+
+varImp(gbmFit2)
+
+key_pred <- setdiff(colnames(train_clean_key_predictors), "PH")
+
+for (var in key_pred) {
+  pd <- partial(gbmFit2, pred.var = var, train = train_clean)
+  plot(pd, main = paste("Partial Dependence of pH on", var))
+}
+
+### !!! If using a linear model, check the VIF values using car::vif() after fitting a linear model.
+```
+
+```{r data-analysis-model-perf, echo=FALSE}
+
+```
+
+```{r data-analysis-predict, echo=FALSE}
+
 ```
 
 ## Findings
@@ -394,3 +538,22 @@ saveRDS(imputation_values, "imputation_values.rds")
 ```{r conclusion, echo=FALSE}
 # this is a placeholder in case we want to include any plots or code outputs in the conclusion and recommendations section
 ```
+
+### Extra Analysis
+#### Gradient Boost Model 
+To better understand the direction and shape of the predictor and its effect on 
+pH we can visualize it below with scatterplots: 
+```{r eda-gbm}
+for (var in key_pred) {
+  p <- ggplot(train_clean, aes(x = .data[[var]], y = "PH")) +
+    geom_point(alpha = 0.5, color = "#0072B2") +
+    geom_smooth(method = "loess", se = FALSE, color = "red") +
+    labs(title = paste("Scatterplot of PH vs", var),
+         x = var,
+         y = "pH") +
+    theme_minimal()
+  
+  print(p)
+}
+```
+The results of these plots show that there is not a strong relationship. Horizontal scatterplots usually mean the y-variable has no variability or is constant.
