@@ -24,6 +24,7 @@ ggplot2::theme_set(ggplot2::theme_minimal() +
 ```{r load-libraries}
 # Loading all required libraries
 library(tidyverse)
+library(tidymodels)
 library(readxl)
 library(VIM)
 library(naniar)
@@ -31,6 +32,11 @@ library(corrplot)
 library(caret)
 library(gbm)
 library(pdp)
+library(tune)
+library(finetune)
+library(janitor)
+library(mgcv)
+library(nnet)
 ```
 
 ## Executive Summary
@@ -85,6 +91,8 @@ if(all(startsWith(names(train_data), "..."))) {
   # Assign proper column names from metadata
   names(train_data) <- column_info$Name[1:ncol(train_data)]
   
+  ### !!! NOTE FOR MARC: in StudentData - TO MODEL.xlsx the Brand Code is not all empty.
+  ### !!! NOTE FOR MARC: You may want to consider recoding the values so that a= 1, b=2, c=3, etc. We likely want to keep this variable since it is an identifier. 
   # Remove the first column if it's all NA (likely Brand Code which is empty in training)
   if(all(is.na(train_data[[1]]))) {
     train_data <- train_data[, -1]
@@ -120,6 +128,8 @@ if(nrow(missing_summary) > 0) {
 # For numeric variables: use median imputation
 # For categorical variables: use mode imputation or create 'Unknown' category
 numeric_vars <- names(train_data)[sapply(train_data, is.numeric)]
+
+### !!! NOTE FOR MARC: This vector is empty - I left a few notes below on this - may want to consider removing !!!
 categorical_vars <- names(train_data)[!sapply(train_data, is.numeric)]
 
 # Create a function to get mode
@@ -139,6 +149,8 @@ for(var in numeric_vars) {
     cat(paste("Imputed", sum(is.na(train_data[[var]])), "missing values in", var, "with median:", median_val, "\n"))
   }
 }
+
+### !!! NOTE FOR MARC: Is this section below necessary? The categorical_vars vector is empty - I do not believe there are categorical variables beyond the brand !!!
 
 # Categorical imputation with mode
 for(var in categorical_vars) {
@@ -168,6 +180,8 @@ for(var in numeric_vars) {
     }
   }
 }
+
+### !!! NOTE FOR MARC: Is this section below necessary? The categorical_vars vector is empty - I do not believe there are categorical variables beyond the brand !!!
 
 # Categorical imputation using training data modes
 for(var in categorical_vars) {
@@ -374,7 +388,8 @@ for(var in names(physical_ranges)) {
   }
 }
 
-# CHECK IF THIS SHOULD BE DIRECTLY IN THE BODY OF THE .RMD
+#### !!! Note for Marc: Should this be in the body of the document? If so, you might want to consider adding it below this chunk. If you want to include dynamic text you can indicate you are providing R in the Markdown by placing `r cat("\n--- Final Data Quality Check ---\n")`. However, if you are using a package it will not render unless you specify it (for example if you wanted to output cleaned names you could put the following: `r janitor::clean_names(train_clean`). !!!
+
 # Final check for data quality
 cat("\n--- Final Data Quality Check ---\n")
 cat("Training data after cleaning:", dim(train_clean), "\n")
@@ -392,7 +407,7 @@ saveRDS(imputation_values, "data/imputation_values.rds")
 
 ### Data Analysis
 
-[insert information on approach here]:
+To predict pH values this analysis follows this methodology:
 
 1.  **Exploratory Analysis**: Evaluate the distribution and relationships of the predictors in the training data.
 Focusing on:
@@ -401,11 +416,15 @@ Focusing on:
       The RMSE measures the average size of the prediction errors—how far the predicted values are       from the actual values.
       $R^2$ (R-squared) measures the proportion of variance in the target (pH) that the model can        explain. A higher $R^2$ suggests the model is uncovering real structure in the data, and is        not just fitting to randomness.
 
-2.  **Identify the Best Modeling Approach**: [insert here]
+2.  **Identify the Best Modeling Approach**: Identify which type of model performs best on this dataset.
+- Gradient Boost Model(GBM)
+- Random Forest
+- Neural Net
+- LASSO Regression
+- Generalized Additive Model (GAM) 
 
-3.  **Evaluate the Model Performance**: [insert here]
-
-4.  **Predict on Evaluation Data**: [insert here]
+3.  **Predict on Evaluation Data**: Using the best modeling approach, predict pH 
+values using the evaluation data.
 
 ```{r data-analysis-eda, echo=FALSE}
 # Visualizations
@@ -464,15 +483,38 @@ get_top_predictors <- function(model, train_df, top_n = 10) {
   return(top_df)
 }
 
+train_clean_slim20 <- get_top_predictors(gbmFit1, train_clean, top_n = 20)
 train_clean_slim10 <- get_top_predictors(gbmFit1, train_clean, top_n = 10)
 train_clean_slim5 <- get_top_predictors(gbmFit1, train_clean, top_n = 5)
 
 GGally::ggpairs(train_clean_slim5) # top predictors vs. pH.
 ```
 
-Based on the Ggpairs plot, it seems that Mnf_Flow and Flow_Pressure_Interaction 
-have multicollinearity. If a linear model is used, one of the predictors should 
-be removed.
+```{r data-analysis-eda-distr}
+train_clean_slim10 |>
+  pivot_longer(
+    cols = everything(),
+    names_to = "variable",
+    values_to = "values"
+  ) |>
+  filter(!is.na(values)) |>
+  ggplot(aes(x = values)) +
+  geom_bar(stat = "bin", bins = 20, fill = "steelblue", color = "white") +
+  facet_wrap(~ variable, ncol = 7, scales = "free") +
+  labs(
+    title = paste("Distribution of"),
+    x = "Values",
+    y = "Count"
+  ) +
+  theme_minimal()
+```
+
+```{r data-analysis-eda-corr}
+# Correlation of the Top 20 Predictors
+cor_matrix <- cor(train_clean_slim20, use = "pairwise.complete.obs")
+corrplot::corrplot(cor_matrix, order = "hclust", tl.cex = 0.7)
+```
+Based on the Ggpairs and Correlation plots, it seems that Mnf_Flow and Flow_Pressure_Interaction have multicollinearity. If a linear model is used, one of the predictors should be removed.
 
 The key predictors are:
 1. CO2_Liquid_Ratio (domain knowledge predictor)
@@ -484,43 +526,278 @@ The key predictors are:
 7. Alch Rel
 
 ```{r data-analysis-modeling-approach, echo=FALSE}
-# creating df with only key predictors
-train_clean_key_predictors <- train_clean |> 
-  select(CO2_Liquid_Ratio,
-         Saturation_Index,
-         Alch_Carb_Interaction,
-         Flow_Pressure_Interaction,
-         Temperature,
-         `Usage cont`,
-         `Alch Rel`,
-         PH)
-
-# running a GBM with key predictors
-gbmFit2 <- train(PH ~ ., data = train_clean_key_predictors, 
+# running a GBM with top 10 key predictors
+gbmFit2 <- train(PH ~ ., data = train_clean_slim10, 
                  method = "gbm", 
                  trControl = fitControl,
                  ## This last option is actually one
                  ## for gbm() that passes through
                  verbose = FALSE)
 
-varImp(gbmFit2)
-
-key_pred <- setdiff(colnames(train_clean_key_predictors), "PH")
+key_pred <- setdiff(colnames(train_clean_slim10), "PH")
 
 for (var in key_pred) {
   pd <- partial(gbmFit2, pred.var = var, train = train_clean)
   plot(pd, main = paste("Partial Dependence of pH on", var))
 }
 
-### !!! If using a linear model, check the VIF values using car::vif() after fitting a linear model.
+varImp(gbmFit2)
+
+# Attempt improving GBM by:
+# Change the train control by adding the tuneGrid
+# Adding more predictors 
+
+# Tuning hyperparameters (n.trees, shrinkage, interaction.depth).
+tuneGrid <- expand.grid(
+  n.trees = c(150, 200, 300),
+  interaction.depth = c(2, 3, 4, 5),
+  shrinkage = c(0.1, 0.05),
+  n.minobsinnode = 10
+)
+
+gbmFit3 <- train(PH ~ ., data = train_clean_slim20, #using top 20 indicators
+                 method = "gbm", 
+                 trControl = fitControl,
+                 tuneGrid = tuneGrid,
+                 verbose = FALSE)
+
+fitControl2 <- trainControl(
+  method = "cv",  # simple k-fold CV
+  number = 3,     # 3 folds (or 5 for slightly more robustness)
+  verboseIter = TRUE  # optional: shows progress
+)
+
+# Attempting to improve the model by using a faster variant w/ all predictors:
+tuneGrid_xgb <- expand.grid(
+  nrounds = c(100, 200),
+  max_depth = c(3, 6),
+  eta = c(0.1, 0.3),         # learning rate
+  gamma = 0,
+  colsample_bytree = 1,
+  min_child_weight = 1,
+  subsample = 1
+)
+
+gbmFit4 <- train(PH ~ ., data = train_clean_slim5, 
+                 method = "xgbTree",  # xgboost variant
+                 trControl = fitControl2,
+                 tuneGrid = tuneGrid_xgb,  # defined above
+                 verbose = FALSE,
+                 verbosity = 0)
+
+# Additional Model Tuning: 
+# Using Bayesian Optimization
+
+# Preprocessing the data using a recipe
+xgb_recipe <- recipe(PH ~ ., data = train_clean_slim20)  # specifying the response variable
+
+# Specify the xgboost model with hyperparameters to tune
+xgb_model <- boost_tree(
+  trees = tune(),           # Number of boosting iterations (nrounds)
+  tree_depth = tune(),      # Maximum depth of each tree
+  learn_rate = tune(),      # Learning rate (how much each tree contributes)
+  min_n = tune()            # Minimum number of observations in a terminal node
+) |>
+  set_engine("xgboost") |>  # Use xgboost engine for gradient boosting
+  set_mode("regression")    # Set model mode to regression since pH is continuous
+
+# Set up the modeling workflow with preprocessing and model
+xgb_workflow <- workflow() |> 
+  add_model(xgb_model) |> 
+  add_recipe(xgb_recipe)    # Add the recipe to normalize predictors
+
+# Define cross-validation folds (3-fold CV to reduce computation)
+cv_folds <- vfold_cv(train_clean_slim20, v = 3)  # 3 folds, no repeats, to reduce resource usage
+
+# Define a reduced search space for Bayesian tuning to keep computation low
+xgb_params <- parameters(
+  trees(range = c(100, 300)),        # Limit number of trees (boosting rounds)
+  tree_depth(range = c(2, 4)),      # Limit tree depth
+  learn_rate(range = c(0.01, 0.3)), # Keep learning rate reasonable
+  min_n(range = c(2, 5))            # Terminal node size (minimum observations per leaf)
+)
+
+# Run Bayesian optimization with fewer initial points and iterations
+xgb_bayes_results <- tune_bayes(
+  xgb_workflow,
+  resamples = cv_folds,              # Use 3-fold CV to evaluate model performance
+  param_info = xgb_params,           # Use the defined smaller hyperparameter space
+  metrics = metric_set(rmse, rsq),   # Evaluate model using RMSE and R-squared
+  initial = 3,                       # Start with 3 random combinations
+  iter = 5,                          # Perform 5 iterations of Bayesian optimization
+  control = control_bayes(
+    no_improve = 2,                  # Stop early if no improvement after 2 rounds
+    verbose = TRUE                   # Print progress to console
+  )
+)
+
+# Show best-performing combinations sorted by RMSE
+show_best(xgb_bayes_results, metric = "rmse")
+# Extract the best parameters based on RMSE
+best_params <- select_best(xgb_bayes_results, metric="rmse")
+# Finalize the workflow with the best hyperparameters
+final_workflow <- finalize_workflow(xgb_workflow, best_params)
+# Fit the final model to the full training dataset
+gbmFit5 <- fit(final_workflow, data = train_clean_slim20)
+
+
+# Explore other model performance:
+# Random Forest
+# column names with backticks are causing issues with the caret package.
+# Basic recipe: normalize numeric predictors
+# Clean column names to remove spaces
+train_clean_renamed <- clean_names(train_clean)
+eval_clean_renamed <- clean_names(eval_clean)
+
+# Split training data into train/test
+data_split <- initial_split(train_clean_renamed, prop = 0.8, strata = ph)
+train_data <- training(data_split)
+test_data <- testing(data_split)
+
+# Basic recipe: normalize numeric predictors
+recipe_base <- recipe(ph ~ ., data = train_clean_renamed) |>
+  step_normalize(all_numeric_predictors())
+
+# RF recipe: should not normalize numeric predictors
+recipe_base_rf <- recipe(ph ~ ., data = train_clean_renamed) 
+
+rf_model <- rand_forest(mtry = 5, trees = 200, min_n = 5) |>
+  set_mode("regression") |>
+  set_engine("ranger")
+
+rf_workflow <- workflow() |>
+  add_model(rf_model) |>
+  add_recipe(recipe_base_rf)
+
+rf_fit <- rf_workflow |> fit(data = train_clean_renamed)
+
+rf_metrics <- rf_fit |>
+  predict(new_data = test_data) |>
+  bind_cols(test_data) |>
+  metrics(truth = ph, estimate = .pred)
+
+rf_metrics
+
+# Neural Net
+
+nn_model <- mlp(hidden_units = 5, penalty = 0.01, epochs = 100) |>
+  set_mode("regression") |>
+  set_engine("nnet")
+
+nn_workflow <- workflow() |>
+  add_model(nn_model) |>
+  add_recipe(recipe_base)
+
+nn_fit <- nn_workflow |> fit(data = train_clean_renamed)
+
+nn_metrics <- nn_fit |>
+  predict(new_data = test_data) |>
+  bind_cols(test_data) |>
+  metrics(truth = ph, estimate = .pred)
+
+nn_metrics
+
+# LASSO Regression
+lasso_model <- linear_reg(penalty = 0.1, mixture = 1) |>  # mixture=1 = LASSO
+  set_engine("glmnet")
+
+lasso_workflow <- workflow() |>
+  add_model(lasso_model) |>
+  add_recipe(recipe_base)
+
+lasso_fit <- lasso_workflow |> fit(data = train_clean_renamed)
+
+lasso_metrics <- lasso_fit |>
+  predict(new_data = test_data) |>
+  bind_cols(test_data) |>
+  metrics(truth = ph, estimate = .pred)
+
+lasso_metrics
+
+# Generalized Additive Model
+# 
+gam_fit <- gam(ph ~ s(temperature) + s(carb_pressure) + s(density) +
+                   s(psc_co2) + s(balling_lvl) + s(fill_ounces),
+               data = train_clean_renamed)
+
+# Predict on test data
+test_data$gam_pred <- predict(gam_fit, newdata = test_data)
+
+# Evaluate
+gam_metrics <- yardstick::metrics(test_data, truth = ph, estimate = gam_pred)
+gam_metrics
+```
+As shown in the metrics, Random Forest Models perform the best on this dataset. 
+
+```{r data-analysis-predict-test, echo=FALSE}
+# Predict on training data using the fitted random forest model
+rf_test_predictions <- predict(rf_fit, new_data = test_data)
+
+head(rf_test_predictions)
+
+# Combining predictions with training data (comparing expected vs. observed)
+rf_test_results <- rf_test_predictions |>
+  bind_cols(test_data) |> 
+  mutate(percent_off = abs(.pred - ph) / ph * 100)
+
+# View results
+head(rf_test_results)
+
+ggplot(rf_test_results) +
+  geom_histogram(aes(x = percent_off), bins = 30, fill = "steelblue", color = "white") +
+  labs(
+    title = "Distribution of Percent Error for Random Forest Predictions",
+    x = "Percent Off (%)",
+    y = "Count"
+  ) +
+  theme_minimal()
+
+ggplot(rf_test_results) +
+  geom_point(aes(x = ph, y = .pred, color = percent_off), alpha = 0.7) +
+  scale_color_viridis_c(option = "plasma") +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  labs(
+    title = "Predicted vs Actual pH with Percent Error Coloring",
+    x = "Actual pH",
+    y = "Predicted pH",
+    color = "Percent Off (%)"
+  ) +
+  theme_minimal()
 ```
 
-```{r data-analysis-model-perf, echo=FALSE}
+```{r data-analysis-predict-actual, echo=FALSE}
+# Predict on training data using the fitted random forest model
+rf_predictions <- predict(rf_fit, new_data = eval_clean_renamed)
 
-```
+head(rf_predictions)
 
-```{r data-analysis-predict, echo=FALSE}
+# Combining predictions with your original data (comparing expected vs. observed)
+rf_results <- rf_predictions |>
+  bind_cols(eval_clean_renamed) |> 
+  mutate(percent_off = abs(.pred - ph) / ph * 100)
 
+# View results
+head(results)
+
+ggplot(rf_results) +
+  geom_histogram(aes(x = percent_off), bins = 30, fill = "steelblue", color = "white") +
+  labs(
+    title = "Distribution of Percent Error for Random Forest Predictions",
+    x = "Percent Off (%)",
+    y = "Count"
+  ) +
+  theme_minimal()
+
+ggplot(rf_results) +
+  geom_point(aes(x = ph, y = .pred, color = percent_off), alpha = 0.7) +
+  scale_color_viridis_c(option = "plasma") +
+  labs(
+    title = "Predicted vs Actual pH with Percent Error Coloring",
+    x = "Actual pH",
+    y = "Predicted pH",
+    color = "Percent Off (%)"
+  ) +
+  theme_minimal()
 ```
 
 ## Findings
@@ -528,7 +805,7 @@ for (var in key_pred) {
 [Insert findings here]
 
 ```{r findings, echo=FALSE}
-# this is a placeholder in case we want to include any plots or code outputs in the findings section
+# this is should include code, plots, or outputs depicting model performance
 ```
 
 ## Conclusion and Recommendations
