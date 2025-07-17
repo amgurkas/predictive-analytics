@@ -318,7 +318,7 @@ yield. Model performance was evaluated using RMSE and R², and identified the mo
 
 To determine which nonlinear regression model gives the optimal resampling and 
 test set performance, these steps can be followed:
-- Train multiple nonlinear regression models such as Random Forest or Neural Net.
+- Train multiple nonlinear regression models such as random forest or neural net.
 - Use resampling techniques during training like k-fold cross-validation to estimate each model’s performance on unseen data.
 - Collect the resampling performance metrics (i.e., lowest RMSE or highest R²).
 - Apply each trained model to the test set.
@@ -356,41 +356,66 @@ y_test  <- yield[-trainIndex] # test set response
 
 # creating a function that trains the model, extracts resampling performance metrics, and returns the model object and metrics.
 train_and_evaluate <- function(X_train, y_train, method_name, X_test, y_test) {
+  # Combine predictors (X_train) and response (y_train) into a single training data frame
   training_data <- data.frame(X_train, y = y_train)
   
+  # Set up 10-fold cross-validation resampling parameters
   tr_control <- trainControl(
-    method = "cv",
-    number = 10,
-    verboseIter = FALSE
+    method = "cv",      # Use cross-validation
+    number = 10,        # 10 folds
+    verboseIter = FALSE # Don't print training progress
   )
   
+  # Define hyperparameter tuning grids based on the model type specified by 'method_name'
   tune_grid <- switch(
     method_name,
+    # random forest: number of variables randomly sampled at each split
     "rf" = expand.grid(mtry = c(2, 4, 6)),
-    "svmRadial" = expand.grid(sigma = c(0.01, 0.05), C = c(0.25, 0.5, 1)),
-    "nnet" = expand.grid(size = c(5, 7, 9, 12), decay = c(0, 0.01, 0.1, 0.5)),
+    # SVM with radial kernel: tuning sigma and cost parameters
+    "svmRadial" = expand.grid(
+      sigma = c(0.01, 0.05),
+      C = c(0.25, 0.5, 1)
+    ),
+    # neural network: tuning number of hidden units (size) and weight decay (decay)
+    "nnet" = expand.grid(
+      size = c(5, 7, 9, 12),
+      decay = c(0, 0.01, 0.1, 0.5)
+    ),
+    # k-Nearest Neighbors: tuning number of neighbors k
     "knn" = expand.grid(k = c(3, 5, 7, 9)),
+    # Default if method_name not matched: no tuning grid
     NULL
   )
   
+  # Train the model 
   model_fit <- train(
+    # Formula: predict y using all other variables in training_data
     y ~ .,
+    # The combined training data frame
     data = training_data,
+    # The algorithm to use (e.g., "rf", "nnet") passed as a string
     method = method_name,
+    # Resampling strategy defined above (10-fold CV)
     trControl = tr_control,
+    # Hyperparameter tuning grid defined above
     tuneGrid = tune_grid,
-    metric = "RMSE"
+    # Metric to optimize during tuning (RMSE)
+    metric = "RMSE" 
   )
   
-  # Predict on test set
+  # Generate predictions on the test set
   predictions <- predict(model_fit, newdata = X_test)
   
-  # Calculate test metrics
+  # Calculate performance metrics on the test set: RMSE and R-squared
   test_metrics <- data.frame(
+    # Root Mean Squared Error on test data
     RMSE = RMSE(predictions, y_test),
+    # R^2 of test data
     Rsquared = R2(predictions, y_test)
   )
   
+  # Return a list with:
+  # trained model object, the best RMSE, best RMSE found during cross-validation (training), the test set performance metrics calculated above
   list(
     model = model_fit,
     best_rmse = min(model_fit$results$RMSE),
@@ -398,18 +423,36 @@ train_and_evaluate <- function(X_train, y_train, method_name, X_test, y_test) {
   )
 }
 
+# Define a vector of model namesto iterate over (as defined by caret funct.)
+models <- c("rf", "svmRadial", "nnet", "knn")
+
+# loop over each model type, train and evaluate using the function above
 results <- lapply(models, function(m) {
   train_and_evaluate(X_train, y_train, m, X_test, y_test)
 })
 
+# Name each element of results list by the corresponding model name for easy reference
 names(results) <- models
 
+# Extract test set metrics for each model, add a 'model' column for identification,
+# then combine all into a single data frame for comparison
 test_perf <- lapply(models, function(m) {
   results[[m]]$test_metrics |> 
     mutate(model = m)
 }) |> 
-  bind_rows()
+  bind_rows()  # Combine list of data frames into one data frame
 ```
+
+Based on the test performance metrics, the random forest gives the optimal resampling 
+and test set performance. This is because the RMSE is the lowest value of the 
+nonlinear regression models, and the $R^2$ is the highest. This indicates that
+that the random forest model has the smallest average prediction error on the test 
+data (low RMSE), meaning its predictions are close to the actual observed values. 
+
+Additionally, the high $R^2$ shows that the model explains a large proportion of 
+the variance in the response variable, reflecting strong predictive power and a 
+good fit to the data. Together, these metrics suggest that the random forest 
+model generalizes well and reliably captures the underlying relationships in the dataset.
 
 ## KJ 7.5(b)
 
@@ -417,27 +460,108 @@ test_perf <- lapply(models, function(m) {
 
 ### Approach - KJ 7.5(b)
 
-[insert approach explanation here].
+To answer which predictors are most important in the optimal nonlinear model, 
+the predictors are extracted from the random forest model results. Importance 
+scores from that model, using varImp(), are calculated. Then the list is reviewed to identify whether biological or process variables dominate the top predictors. 
+
+Then, the nonlinear top predictors are compared to the linear model to see if 
+similar variables drive performance or if the nonlinear model reveals additional 
+key factors. This comparison highlights how different modeling approaches capture relationships in the data.
 
 ### Analysis - KJ 7.5(b)
 
 ```{r kj-7.2.b.-analysis}
-# insert analysis here
+# Extracting the rf model results
+rf_model <- results[["rf"]]$model
+
+# Extract variable importance
+rf_varimp <- varImp(rf_model)
+
+# View top 10 most important predictors
+top10_varimp <- rf_varimp$importance |>
+  as.data.frame() |>
+  tibble::rownames_to_column(var = "Predictor") |>
+  dplyr::arrange(dplyr::desc(Overall)) |>
+  head(10)
+
+# Linear model top predictors
+coef_df <- coef_df[coef_df$Feature != "(Intercept)", ]
+top_predictors_linear <- coef_df |>
+  arrange(desc(abs(Coefficient))) |>
+  slice_head(n = 10) |>
+  select(Feature)
+
+# Nonlinear model variable importance, e.g., rf_varimp from varImp()
+# Convert to data frame and get top 10
+top_predictors_rf <- rf_varimp$importance |>
+  as.data.frame() |>
+  tibble::rownames_to_column(var = "Feature") |>
+  arrange(desc(Overall)) |>
+  slice_head(n = 10) |>
+  select(Feature)
+
+# Compare the two lists
+comparison <- tibble(
+  Linear = top_predictors_linear$Feature,
+  RandomForest = top_predictors_rf$Feature
+)
+
+# Finding common predictors
+common_predictors <- intersect(top_predictors_linear$Feature, top_predictors_rf$Feature)
 ```
+In the linear model, there are seven manufacturing predictors that have the highest importance whereas there are five from the random forest model. 
+`r cat("Comparison of the top 10 of both models:\n")`
+`r print(comparison)`
+
+There are five variables that appear in the top ten important variables in both the linear and random forest model:
+`r cat("Common predictors in top 10 of both models:\n")`
+`r print(common_predictors)`
+
 
 ## KJ 7.5(c)
 
 *Instructions*: Explore the relationships between the top predictors and the response for the predictors that are unique to the optimal nonlinear regression model. Do these plots reveal intuition about the biological or process predictors and their relationship with yield?
 
 ### Approach - KJ 7.5(c)
-
-[insert approach explaination here].
+To complete part (c) the following steps are completed:
+- Identify the predictors unique to the nonlinear model’s top 10.
+- Plot each unique predictor vs. yield using suitable plots.
+- Analyze the strength, direction, shape of relationship.
+- Consider the behavior to the type of predictor (biological vs. process) and what it might mean for manufacturing.
 
 ### Analysis - KJ 7.5(c)
 
 ```{r kj-7.2.c.-analysis}
-# insert analysis here
+unique_rf_predictors <- setdiff(top_predictors_rf$Feature,top_predictors_linear$Feature)
+
+train_data_7.5 <- X_train %>%
+  mutate(Yield = y_train)
+
+plot_unique_rf_predictors <- train_data_7.5 %>%
+  select(Yield, all_of(unique_rf_predictors)) %>%
+  pivot_longer(
+    cols = -Yield,
+    names_to = "Predictor",
+    values_to = "Value"
+  ) |> 
+  mutate(Predictor = factor(Predictor)) # changing data class to factor
+
+# 
+ggplot(plot_unique_rf_predictors, aes(x = Value, y = Yield)) +
+  geom_point(alpha = 0.6, color = "darkgreen") +
+  # LOESS (Locally Estimated Scatterplot Smoothing) for nonlinear model
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  facet_wrap(~ Predictor, scales = "free_x") +
+  theme_minimal() +
+  labs(title = "Yield vs. Unique RF Predictors",
+       x = "Predictor Value",
+       y = "Yield")
 ```
+
+The scatterplots of the five unique random forest predictors against yield reveal patterns not captured by the linear model. Two predictors (ManufacturigProcess28 and ManufacturingProcess31) exhibit a vertical striping pattern, indicating that yield varies significantly across a narrow range of predictor values. This suggests 
+nonlinear or threshold effects. The ManufacturingProcess31 predictor is highly right-skewed, which can obscure linear trends and highlight the value of 
+non-parametric modeling. The other predictors have less clear or more scattered relationships with yield, which highlights how the random forest model can capture complex patterns that simpler models might miss. Overall, these plots support the 
+idea that nonlinear models are better suited for uncovering hidden structure in manufacturing or biological processes.
 
 # KJ 8.1 Recreate the simulated data from Exercise 7.2.
 
