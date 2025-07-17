@@ -404,7 +404,9 @@ train_and_evaluate <- function(X_train, y_train, method_name, X_test, y_test) {
     # Hyperparameter tuning grid defined above
     tuneGrid = tune_grid,
     # Metric to optimize during tuning (RMSE)
-    metric = "RMSE" 
+    metric = "RMSE",
+    # suppressing outputs from nnet model
+    trace = if (method_name == "nnet") FALSE else NULL
   )
   
   # Generate predictions on the test set
@@ -1080,11 +1082,6 @@ top_rules <- sort(rules, by = "lift", decreasing = TRUE)
 
 # Inspect the top 10 rules by lift
 inspect(top_rules[1:10])
-
-# convert rules to igraph object
-g <- as(top_rules[1:10], "igraph")
-# get layout matrix
-layout_coords <- layout_with_fr(g)
 
 # network graph
 plot(top_rules[1:5], method = "graph", engine = "igraph")
