@@ -22,15 +22,16 @@ ggplot2::theme_set(ggplot2::theme_minimal() +
         axis.title = ggplot2::element_text(size = 12)))
 
 # insert libraries used here
+library(tidyverse)
 library(AppliedPredictiveModeling)
 library(caret)
 library(glmnet)
 library(mlbench)
 library(lattice) 
-library(ggplot2)
 library(nnet)
 library(corrplot)
 library(rpart)
+library(VIM)
 ```
 
 # KJ 6.3
@@ -50,8 +51,6 @@ The appropriate libraries will be loaded per the instructions. We will evaluate 
 ### Analysis - KJ 6.3(a)
 
 ```{r kj-6.3.a.-analysis}
-
-
 data(ChemicalManufacturingProcess)
 
 dim(ChemicalManufacturingProcess)
@@ -125,9 +124,7 @@ Next we will test this ridge model on the remaining data (X_test, and y_test fro
 ### Analysis - KJ 6.3(d)
 
 ```{r kj-6.3.d.-analysis}
-
 y_pred <- predict(ridge_model, newdata = X_test)
-
 
 rmse_test <- RMSE(y_pred, y_test)
 r2_test <- R2(y_pred, y_test)
@@ -136,8 +133,6 @@ rmse_cv <- min(ridge_model$results$RMSE)
 cat("Test RMSE:", round(rmse_test, 3), "\n")
 cat("Test R²:", round(r2_test, 3), "\n")
 cat("Train RMSE (CV):", round(rmse_cv, 3), "\n")
-
-
 ```
 
 The test RMSE is 1.299 which is lower than it was on the training set at 1.36. This indicates that the model generalizes well and that it may have underestimated its performance on the test data. The r squared (.50) means that the model explains 50% of the variation in the response.
@@ -158,11 +153,9 @@ coef_df <- as.data.frame(as.matrix(ridge_coef))
 coef_df$Feature <- rownames(coef_df)
 colnames(coef_df)[1] <- "Coefficient"
 
-
 coef_df <- coef_df[coef_df$Feature != "(Intercept)", ]
 top_predictors <- coef_df[order(abs(coef_df$Coefficient), decreasing = TRUE), ]
 head(top_predictors, 5)
-
 ```
 
 The most influential predictors and their coefficients are:
@@ -188,10 +181,6 @@ Manufacturing predictors dominate the list.
 We will look at the value of the coefficients paying particular attention to those that are largest or smallest.
 
 ### Analysis - KJ 6.3(f)
-
-```{r kj-6.3.f.-analysis}
-# No additional code needed for 6.3(f).
-```
 
 The coefficients that are negative indicate that the process has a negative impact on product yield, meaning that reducing this variable could improve output. The largest positive coefficients mean that increasing those variables (or improving those manufacturing processes) could also increase yield. Refinements in these manufacturing processes, especially those with negative signs, may have the most impact on output.
 
@@ -321,12 +310,105 @@ The MARS model appears to give the best performance and only uses informative pr
 
 ### Approach
 
-[insert approach explanation here].
+In Exercise 6.3,the chemical manufacturing dataset missing predictor values were 
+handled through imputing the values using k-nearest neighbors. Then, the data 
+was split into training and test sets, and ridge regression was applied with 
+10-fold cross-validation to model the relationship between predictors and product 
+yield. Model performance was evaluated using RMSE and R², and identified the most influential process predictors affecting yield.
+
+To determine which nonlinear regression model gives the optimal resampling and 
+test set performance, these steps can be followed:
+- Train multiple nonlinear regression models such as Random Forest or Neural Net.
+- Use resampling techniques during training like k-fold cross-validation to estimate each model’s performance on unseen data.
+- Collect the resampling performance metrics (i.e., lowest RMSE or highest R²).
+- Apply each trained model to the test set.
+- Compare both resampling and test set performance.
+- Check for consistency between resampling and test results.
+
+This can be performed by developing a function that:
+(1) Trains the model using the train() function.
+(2) Defines tuning parameters
+(3) Extracts performance metrics (RMSE, R^2)
+(4) Returns a list with model and performance metrics.
 
 ### Analysis - KJ 7.5(a)
 
 ```{r kj-7.2.a.-analysis}
-# insert analysis here
+### Using 6.3 analysis from above:
+# Load the dataset
+data(ChemicalManufacturingProcess)
+
+# Separate response and predictors
+yield <- ChemicalManufacturingProcess$Yield
+predictors <- ChemicalManufacturingProcess[, names(ChemicalManufacturingProcess) != "Yield"]
+# Impute missing values using k-NN
+set.seed(123)
+preProc <- preProcess(predictors, method = "knnImpute")
+predictors_imputed <- predict(preProc, newdata = predictors)
+# Split into Train/Test Sets
+set.seed(123)
+trainIndex <- createDataPartition(yield, p = 0.8, list = FALSE)
+
+X_train <- predictors_imputed[trainIndex, ] # train set predictors
+X_test  <- predictors_imputed[-trainIndex, ] # test set predictors
+y_train <- yield[trainIndex] # train set response
+y_test  <- yield[-trainIndex] # test set response
+
+# creating a function that trains the model, extracts resampling performance metrics, and returns the model object and metrics.
+train_and_evaluate <- function(X_train, y_train, method_name, X_test, y_test) {
+  training_data <- data.frame(X_train, y = y_train)
+  
+  tr_control <- trainControl(
+    method = "cv",
+    number = 10,
+    verboseIter = FALSE
+  )
+  
+  tune_grid <- switch(
+    method_name,
+    "rf" = expand.grid(mtry = c(2, 4, 6)),
+    "svmRadial" = expand.grid(sigma = c(0.01, 0.05), C = c(0.25, 0.5, 1)),
+    "nnet" = expand.grid(size = c(5, 7, 9, 12), decay = c(0, 0.01, 0.1, 0.5)),
+    "knn" = expand.grid(k = c(3, 5, 7, 9)),
+    NULL
+  )
+  
+  model_fit <- train(
+    y ~ .,
+    data = training_data,
+    method = method_name,
+    trControl = tr_control,
+    tuneGrid = tune_grid,
+    metric = "RMSE"
+  )
+  
+  # Predict on test set
+  predictions <- predict(model_fit, newdata = X_test)
+  
+  # Calculate test metrics
+  test_metrics <- data.frame(
+    RMSE = RMSE(predictions, y_test),
+    Rsquared = R2(predictions, y_test)
+  )
+  
+  list(
+    model = model_fit,
+    best_rmse = min(model_fit$results$RMSE),
+    test_metrics = test_metrics
+  )
+}
+
+results <- lapply(models, function(m) {
+  train_and_evaluate(X_train, y_train, m, X_test, y_test)
+})
+
+names(results) <- models
+
+test_perf <- lapply(models, function(m) {
+  results[[m]]$test_metrics |> 
+    mutate(model = m)
+}) |> 
+  bind_rows()
 ```
 
 ## KJ 7.5(b)
