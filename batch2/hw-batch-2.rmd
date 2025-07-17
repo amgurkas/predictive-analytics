@@ -34,6 +34,8 @@ library(rpart)
 library(VIM)
 library(gbm)
 library(arules)
+library(arulesViz)
+library(igraph)
 ```
 
 # KJ 6.3
@@ -1026,18 +1028,25 @@ Here is the dataset (comma separated file)
 You assignment is to use R to mine the data for association rules.  Provide information on  all relevant statistics like support, confidence, lift and others.   Also, Provide your top 10 rules by lift with the associated metrics.
 
 ### Approach - Recommender Problem
+This analysis applies market basket analysis to a dataset of 10,000 grocery 
+transactions, with each row representing items purchased together. Using the 
+arules package in R, the data is converted into a transaction format and mined 
+for association rules using the apriori algorithm. The model evaluates rules 
+based on key metrics like support, confidence, and lift, with a focus on 
+identifying strong product associations. The top 10 rules are extracted based on 
+lift to highlight the most influential item combinations.
+
 1. Load transaction data using arules package.
 2. Convert the CSV into a transaction format.
 3. Use the apriori() algorithm to generate association rules.
 4. Sort rules by lift and show top 10.
 5. Inspect rule metrics: support, confidence, lift, count.
 
-
 ### Analysis - Recommender Problem
 
 ```{r recommender-analysis}
 # Read in the CSV file of grocery transactions
-groceries_df <- read.transactions(
+groceries_df <- arules::read.transactions(
   # Path to the CSV file
   file = "GroceryDataSet.csv",
   # Specifying that each row represents a transaction
@@ -1051,4 +1060,85 @@ summary(groceries_df)
 
 # Inspect a few transactions
 inspect(groceries_df[1:5])
+
+# Apply the apriori algorithm to find association rules
+rules <- apriori(
+  # Use the transaction data
+  data = groceries_df,
+  parameter = list(
+    # Minimum support threshold (0.1%)
+    supp = 0.001,
+    # Minimum confidence threshold (50%)
+    conf = 0.5,
+    # Minimum number of items per rule
+    minlen = 2
+  )
+)
+
+# Sort rules by lift in decreasing order
+top_rules <- sort(rules, by = "lift", decreasing = TRUE)
+
+# Inspect the top 10 rules by lift
+inspect(top_rules[1:10])
+
+# convert rules to igraph object
+g <- as(top_rules[1:10], "igraph")
+# get layout matrix
+layout_coords <- layout_with_fr(g)
+
+# network graph
+plot(top_rules[1:5], method = "graph", engine = "igraph")
+
+plot(top_rules[1:10], method = "grouped")
+
+rules_subset <- top_rules[1:5]
+
+# Visualize rules using a matrix layout
+plot(
+  top_rules[1:10],
+  # Use matrix layout to compare rules and metrics
+  method = "matrix",
+  # Show lift on the color scale
+  measure = "lift", 
+  # Reorder rules to improve clarity
+  control = list(reorder = "measure")
+)
 ```
+The top association rules uncovered frequent co-occurrences of items such as 
+instant food products, soda, popcorn, and baking goods, suggesting these products 
+are commonly bought together. Rules with the highest lift revealed strong 
+dependencies between items, where purchasing one significantly increased the 
+likelihood of purchasing another. 
+
+Most rules had low support, indicating that while the item sets are 
+not dominant across all transactions, their associations are statistically 
+meaningful. These findings can inform cross-promotional strategies, 
+store layout decisions, or targeted product recommendations.
+
+**Interpretting the Network Visualization**: The network visualization plot 
+depicts the top five rules. The nodes are items, and arrows show association 
+rule direction (from LHS → RHS). The arrows show that buying one item (or a group 
+of items) tends to lead to purchasing another. The node size is proportional to 
+support, showing how frequently that item appears in rules. Additionally, the node 
+color reflects lift, showing how strongly associated an item is when it appears 
+as a consequence (RHS).This maps the structure of relationships between items, 
+especially clusters of co-purchases.
+
+**Interpreting the Grouped Matrix Plot**: The grouped matrix plot shows how the 
+left-hand side (LHS) of rules maps to the right-hand side (RHS). Basically it 
+shows that if the customer buys X and Y, they also tend to buy Z. 
+The X-axis (LHS Groups) are the items or item combinations in customer baskets, 
+and the Y-axis (RHS) are the items predicted by the rule.
+
+The circle size represents support, meaning how often that rule appears in the 
+dataset. The circle color represents lift, meaning the strength of association. 
+So the darker red means the stronger rule (higher lift). This plot is good for 
+seeing which LHS item sets predict specific RHS items and how strong those 
+connections are.
+
+**Interpreting the Matrix-Based Association Plot**: The dark red square in the 
+upper left shows the strongest association based on lift. The lighter colors 
+moving down and right indicate gradually weaker associations. The medium red 
+square near the top middle represents a moderately strong, separate pattern. 
+Overall, the plot highlights a main cluster of strong rules with some notable 
+but weaker outliers.
