@@ -33,6 +33,7 @@ library(corrplot)
 library(rpart)
 library(VIM)
 library(gbm)
+library(arules)
 ```
 
 # KJ 6.3
@@ -1014,15 +1015,40 @@ ggplot(imp_compare, aes(x = reorder(var, rel.inf), y = rel.inf, fill = model)) +
 ```
 
 # Recommender Problem
+*Instructions*: I am assigning one simple problem on market basket analysis / recommender systems.  
+
+Imagine 10000 receipts sitting on your table. Each receipt represents a transaction with items that were purchased. The receipt is a representation of stuff that went into a customer’s basket – and therefore ‘Market Basket Analysis’.
+
+That is exactly what the Groceries Data Set contains: a collection of receipts with each line representing 1 receipt and the items purchased. Each line is called a transaction and each column in a row represents an item.
+
+Here is the dataset (comma separated file)
+
+You assignment is to use R to mine the data for association rules.  Provide information on  all relevant statistics like support, confidence, lift and others.   Also, Provide your top 10 rules by lift with the associated metrics.
 
 ### Approach - Recommender Problem
+1. Load transaction data using arules package.
+2. Convert the CSV into a transaction format.
+3. Use the apriori() algorithm to generate association rules.
+4. Sort rules by lift and show top 10.
+5. Inspect rule metrics: support, confidence, lift, count.
 
-```{r recommender-approach}
-# insert analysis here
-```
 
 ### Analysis - Recommender Problem
 
 ```{r recommender-analysis}
-# insert analysis here
+# Read in the CSV file of grocery transactions
+groceries_df <- read.transactions(
+  # Path to the CSV file
+  file = "GroceryDataSet.csv",
+  # Specifying that each row represents a transaction
+  format = "basket",
+  # Items in a transaction are comma-separated
+  sep = ","
+)
+
+# Check how many transactions and items are in the dataset
+summary(groceries_df)
+
+# Inspect a few transactions
+inspect(groceries_df[1:5])
 ```
