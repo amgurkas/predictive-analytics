@@ -32,6 +32,7 @@ library(nnet)
 library(corrplot)
 library(rpart)
 library(VIM)
+library(gbm)
 ```
 
 # KJ 6.3
@@ -693,18 +694,108 @@ In the graphics, the dashed line represents the ideal case in which the predicte
 
 *Instructions*: In stochastic gradient boosting the bagging fraction and learning rate will govern the construction of the trees as they are guided by the gradient. Although the optimal values of these parameters should be obtained through the tuning process, it is helpful to understand how the magnitudes of these parameters affect magnitudes of variable importance. Figure 8.24 provides the variable importance plots for boosting using two extreme values for the bagging fraction (0.1 and 0.9) and the learning rate (0.1 and 0.9) for the solubility data. The left-hand plot has both parameters set to 0.1, and the right-hand plot has both set to 0.9:
 
+![Figure 8.24: A comparison of variable importance magnitudes for differing values of the bagging fraction and shrinkage parameters. Both tuning parameters are set to 0.1 in the left figure. Both are set to 0.9 in the right figure](fig.8.24.png)
+
 ## KJ 8.3(a)
 
 *Instructions*: Why does the model on the right focus its importance on just the first few of predictors, whereas the model on the left spreads importance across more predictors?
 
 ### Approach - KJ 8.3(a)
+In this problem we explore how tuning parameters in stochastic gradient boosting affect variable importance. With a low learning rate and low bagging fraction (left model), the variable importance is spread out across many predictors, whereas with a high 
+learning rate and high bagging fraction (right model), importance is concentrated 
+in just a few predictors.
 
-[insert approach explaination here].
+A *low learning rate* means there are smaller steps and that the model needs many 
+trees to learn patterns, leading to more predictors that can be involved.
+
+A *high learning rate* means there are bigger steps and that the model quickly 
+locks into strong predictors early.
 
 ### Analysis - KJ 8.3(a)
 
+The model on the right (with high learning rate and high bagging fraction) assigns 
+high importance to just a few predictors because it learns quickly and consistently 
+selects the same dominant variables using nearly the full dataset. In contrast, 
+the model on the left (with low learning rate and low bagging) learns more slowly 
+and stochastically, allowing a wider range of predictors to contribute across 
+many trees, which results in a more balanced distribution of variable importance.
+
 ```{r kj-8.3.a.-analysis}
-# insert analysis here
+data(BostonHousing)
+df_boston_housing <- BostonHousing
+
+# standardize predictors
+preproc <- preProcess(df_boston_housing[, -14], method = c("center", "scale"))
+X <- predict(preproc, df_boston_housing[, -14])
+y <- df_boston_housing$medv
+
+# check the dist of medv here: 
+
+# The model is following a gaussian approach because the response variable (medv, median home value) is continuous and approximately normally distributed. This distribution is appropriate for regression problems where residuals are assumed to be symmetrically distributed.
+
+
+
+# Model A: Low learning rate, low bagging
+model_low <- gbm(
+  # Predict median house value (medv) using all other variables
+  formula = medv ~ .,       
+  # Combine preprocessed predictors (X) with the response (y)
+  data = cbind(X, medv = y),
+   # Regression problem, so use Gaussian distribution
+  distribution = "gaussian", 
+  # Total number of boosting iterations (trees)
+  n.trees = 1000, 
+  # Max depth of each tree; controls interaction level
+  interaction.depth = 3,     
+  # Learning rate (small = slow learning, more trees needed)
+  shrinkage = 0.1,    
+  # Randomly sample 10% of data for each tree (adds stochasticity)
+  bag.fraction = 0.1, 
+  # Use 100% of the data for training
+  train.fraction = 1, 
+  # Suppress printed output during training
+  verbose = FALSE
+)
+
+# Model B: High learning rate, high bagging
+model_high <- gbm(
+  # Same formula and data as above
+  formula = medv ~ .,
+  # Same data: predictors + response
+  data = cbind(X, medv = y), 
+  # Still a regression problem
+  distribution = "gaussian",
+  # Same number of boosting iterations
+  n.trees = 1000,
+  # Same tree depth
+  interaction.depth = 3,
+  # Large learning rate (faster learning, more aggressive updates)
+  shrinkage = 0.9,
+  # Each tree sees 90% of data (less randomness)
+  bag.fraction = 0.9,
+  # Still using all data for training
+  train.fraction = 1,
+  # Same as above, suppress output
+  verbose = FALSE
+)
+
+# Calculate relative influence of each predictor
+imp_low <- summary(model_low, plotit = FALSE) |> 
+# Add label identifying the model configuration
+  mutate(model = "Low LR & Bag")
+imp_high <- summary(model_high, plotit = FALSE) |> 
+  mutate(model = "High LR & Bag")
+
+# Combine and visualize
+importance_data <- bind_rows(imp_low, imp_high)
+
+ggplot(importance_data, aes(x = reorder(var, rel.inf), y = rel.inf, fill = model)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  coord_flip() +
+  facet_wrap(~model) +
+  labs(title = "Variable Importance: Low vs High Learning Rate and Bagging",
+       x = "Predictor", y = "Relative Importance") +
+  theme_minimal()
 ```
 
 ## KJ 8.3(b)
@@ -712,13 +803,68 @@ In the graphics, the dashed line represents the ideal case in which the predicte
 *Instructions*: Which model do you think would be more predictive of other samples?
 
 ### Approach - KJ 8.3(b)
+This question asks which model (low vs. high shrinkage/bagging) will generalize 
+better to unseen data. To do this, we evaluate predictive performance using 
+cross-validation or a train/test split.
 
-[insert approach explaination here].
+Models with lower learning rate and higher randomness (bagging) tend to generalize better due to reduced overfitting.
 
 ### Analysis - KJ 8.3(b)
 
 ```{r kj-8.3.b.-analysis}
-# insert analysis here
+# Define 5-fold cross-validation settings
+cv_ctrl <- trainControl(method = "cv", number = 5)
+
+# Train a gradient boosting model with low shrinkage and low bagging fraction
+# This model is expected to generalize better due to slower learning and more stochasticity
+model_low_cv <- train(
+  # Predict median value using all predictors
+  medv ~ .,
+  # Combine predictors and outcome variable
+  data = cbind(X, medv = y),
+  # Use gradient boosting method
+  method = "gbm",
+  # Apply the 5-fold cross-validation settings
+  trControl = cv_ctrl,
+  tuneGrid = expand.grid(
+    # Set number of boosting iterations
+    n.trees = 1000,
+    # Use a moderate tree depth
+    interaction.depth = 3,
+    # Use low learning rate
+    shrinkage = 0.1,
+    # Minimum observations in terminal nodes
+    n.minobsinnode = 10
+  ),
+  # Low bagging fraction for more randomness
+  bag.fraction = 0.1,
+  # Suppress output while training
+  verbose = FALSE
+)
+
+# Train a gradient boosting model with high shrinkage and high bagging fraction
+# This model is more deterministic and may overfit due to aggressive learning
+model_high_cv <- train(
+  medv ~ .,
+  data = cbind(X, medv = y),          
+  method = "gbm",                
+  trControl = cv_ctrl,              
+  tuneGrid = expand.grid(
+    n.trees = 1000,
+    interaction.depth = 3,
+    # High learning rate (faster, more aggressive updates)
+    shrinkage = 0.9,
+    # Same minimum node size
+    n.minobsinnode = 10
+  ),
+  # High bagging fraction (less stochasticity)
+  bag.fraction = 0.9,
+  verbose = FALSE
+)
+
+# View cross-validation results to compare predictive performance
+model_low_cv$results
+model_high_cv$results
 ```
 
 ## KJ 8.3(c)
@@ -727,12 +873,60 @@ In the graphics, the dashed line represents the ideal case in which the predicte
 
 ### Approach - KJ 8.3(c)
 
-[insert approach explaination here].
+This question is about about model complexity. By increasing the interaction.depth,
+it allows the model to capture more complex interactions between predictors.
+
+When interaction.depth increases:
+- The model can fit higher-order interactions, not just main effects.
+- Variable importance may become less steep, as more predictors are now involved in deeper trees.
+- Importance is spread across interacting variables.
 
 ### Analysis - KJ 8.3(c)
 
 ```{r kj-8.3.c.-analysis}
-# insert analysis here
+# Train a new model with greater interaction depth
+# Higher interaction depth allows modeling of complex variable interactions
+model_deep <- gbm(
+  # Predict median value using all variables
+  formula = medv ~ .,
+  # Combine predictors and response
+  data = cbind(X, medv = y),
+  # Use Gaussian distribution for regression
+  distribution = "gaussian",
+  # Number of boosting iterations
+  n.trees = 1000,
+  # Increase depth to allow more complex interactions
+  interaction.depth = 5,
+  # Keep low learning rate for generalization
+  shrinkage = 0.1,
+  # Retain high stochasticity
+  bag.fraction = 0.1,
+  # Use all data for training
+  train.fraction = 1,
+  verbose = FALSE
+)
+
+# Extract variable importance from deeper model
+imp_deep <- summary(model_deep, plotit = FALSE) |> 
+# Add label for this configuration
+  mutate(model = "Depth 5")
+
+# Combine with previously trained shallow model for comparison
+imp_compare <- bind_rows(imp_low, imp_deep)
+
+# Plot importance side by side to observe how increasing depth affects slope
+ggplot(imp_compare, aes(x = reorder(var, rel.inf), y = rel.inf, fill = model)) +
+  # Show bars side-by-side
+  geom_bar(stat = "identity", position = "dodge") + 
+  # Flip axes for readability
+  coord_flip() +
+  # Facet wrap on each model
+  facet_wrap(~model) +
+  labs(
+    title = "Effect of Interaction Depth on Variable Importance",
+    x = "Predictor", y = "Relative Importance"
+  ) +
+  theme_minimal()
 ```
 
 # KJ 8.4
@@ -816,5 +1010,19 @@ In the graphics, the dashed line represents the ideal case in which the predicte
 ### Analysis - KJ 8.7(c)
 
 ```{r kj-8.7.c.-analysis}
+# insert analysis here
+```
+
+# Recommender Problem
+
+### Approach - Recommender Problem
+
+```{r recommender-approach}
+# insert analysis here
+```
+
+### Analysis - Recommender Problem
+
+```{r recommender-analysis}
 # insert analysis here
 ```
