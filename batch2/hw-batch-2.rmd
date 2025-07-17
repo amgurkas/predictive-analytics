@@ -527,7 +527,8 @@ To complete part (c) the following steps are completed:
 - Identify the predictors unique to the nonlinear model’s top 10.
 - Plot each unique predictor vs. yield using suitable plots.
 - Analyze the strength, direction, shape of relationship.
-- Consider the behavior to the type of predictor (biological vs. process) and what it might mean for manufacturing.
+- Consider the behavior to the type of predictor (biological vs. process) and 
+what it might mean for manufacturing.
 
 ### Analysis - KJ 7.5(c)
 
@@ -562,6 +563,10 @@ The scatterplots of the five unique random forest predictors against yield revea
 nonlinear or threshold effects. The ManufacturingProcess31 predictor is highly right-skewed, which can obscure linear trends and highlight the value of 
 non-parametric modeling. The other predictors have less clear or more scattered relationships with yield, which highlights how the random forest model can capture complex patterns that simpler models might miss. Overall, these plots support the 
 idea that nonlinear models are better suited for uncovering hidden structure in manufacturing or biological processes.
+
+Biological predictors vary more naturally, while manufacturing process variables 
+are tighter and skewed, suggesting that improving raw material consistency could 
+have a bigger impact on yield.
 
 # KJ 8.1 Recreate the simulated data from Exercise 7.2.
 
